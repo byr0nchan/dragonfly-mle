@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "ipc.h": "c",
+        "pipeline.h": "c",
+        "nn.h": "c"
+    }
+}
