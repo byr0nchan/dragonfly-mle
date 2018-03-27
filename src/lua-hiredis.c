@@ -1,7 +1,55 @@
 /*
-* lua-hiredis.c: Bindings for hiredis Redis-client library
-*                See copyright information in file COPYRIGHT.
+ * This is a modified version of lua-hiredis.  See the following for more information:
+ * 
+ * https://github.com/agladysh/lua-hiredis
+ */
+
+/*
+lua-hiredis bindings license
+----------------------------
+
+lua-hiredis bindings module code is licensed under the terms of the MIT license
+reproduced below. This means that lua-hiredis is free software and can be used
+for both academic and commercial purposes at absolutely no cost.
+
+Note that hiredis library itself (included for convenience) is licensed under BSD.
+
+===============================================================================
+
+Copyright (C) 2011—2014 lua-hiredis bindings authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+===============================================================================
+
+lua-hiredis bindings authors:
+-----------------------------
+
+Alexander Gladysh <agladysh@gmail.com>
+
+lua-hiredis bindings contributors:
+----------------------------------
+
+Stein Ivar Berghei <stein-ivar@berghei.no>
+Peter Melnichenko <petjamelnik@yandex.ru>
 */
+
 
 #if defined (__cplusplus)
 extern "C" {
@@ -22,9 +70,11 @@ extern "C" {
   #define SPAM(a) (void)0
 #endif
 
+/*
 #define LUAHIREDIS_VERSION     "lua-hiredis 0.2.1"
 #define LUAHIREDIS_COPYRIGHT   "Copyright (C) 2011—2013, lua-hiredis authors"
 #define LUAHIREDIS_DESCRIPTION "Bindings for hiredis Redis-client library"
+*/
 
 #define LUAHIREDIS_CONN_MT   "lua-hiredis.connection"
 #define LUAHIREDIS_CONST_MT  "lua-hiredis.const"
@@ -600,7 +650,6 @@ LUALIB_API int luaopen_hiredis(lua_State * L)
 
   /*
   * Register module information
-  */
   lua_pushliteral(L, LUAHIREDIS_VERSION);
   lua_setfield(L, -2, "_VERSION");
 
@@ -609,6 +658,7 @@ LUALIB_API int luaopen_hiredis(lua_State * L)
 
   lua_pushliteral(L, LUAHIREDIS_DESCRIPTION);
   lua_setfield(L, -2, "_DESCRIPTION");
+*/
 
   /*
   * Register enums
