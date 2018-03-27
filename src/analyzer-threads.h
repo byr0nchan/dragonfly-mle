@@ -24,6 +24,10 @@
 #ifndef _ANALYZER_THREADS_
 #define _ANALYZER_THREADS_
 
+void shutdown_threads();
+void startup_threads(const char *dragonfly_root);
+void destroy_configuration();
+void initialize_configuration(const char *dragonfly_root);
 void launch_lua_analyzers(const char *dragonfly_config);
 
 #endif

@@ -8,32 +8,36 @@ RUN /usr/bin/luarocks install lua-cjson
 #
 ADD dragonfly /opt/dragonfly/
 ADD src src
-RUN cd src; make clean; make; cp dragonfly /opt/dragonfly/bin/; cd ..; rm -rf src
+RUN cd src; make clean; make; cp dragonfly /opt/dragonfly/bin/; cd ..
+RUN rm -rf src
 #
 # Build redis
 #
-RUN git clone https://github.com/antirez/redis.git; \
-    cd redis/src; \
-    make ; \
-    make install ; rm -rf redis 
+#RUN git clone https://github.com/antirez/redis.git; \
+RUN git clone https://ga.jarmansgap.com/open-source/redis-server.git; \
+    cd redis-server/src; \
+    make  MALLOC=libc ; make install 
+RUN rm -rf redis-server
 #
 # Build redis ML
 #
-RUN git clone https://github.com/RedisLabsModules/redis-ml.git; \
-    cd redis-ml/src; make; cp redis-ml.so /opt/dragonfly/lib/; \
-    rm -rf redis-ml
+#RUN git clone https://github.com/RedisLabsModules/redis-ml.git; \
+RUN git clone https://ga.jarmansgap.com/open-source/redis-ml.git; \
+    cd redis-ml/src; make; cp redis-ml.so /opt/dragonfly/lib/
+RUN rm -rf redis-ml
 #
 # Build lua-hiredis
 #
-RUN git clone https://github.com/agladysh/lua-hiredis.git; \
+#RUN git clone https://github.com/agladysh/lua-hiredis.git; \
+RUN git clone https://ga.jarmansgap.com/open-source/lua-hiredis.git; \
     cd lua-hiredis; \
     gcc -O2 -fPIC -I/usr/include/lua5.1 -c src/lua-hiredis.c -o /dev/null -Isrc/ -Ilib/ -Wall --pedantic -Werror --std=c99 ; \
-    /usr/bin/luarocks make rockspec/lua-hiredis-scm-1.rockspec ; \
-    cd ..; rm -rf lua-hiredis
+    /usr/bin/luarocks make rockspec/lua-hiredis-scm-1.rockspec 
+RUN rm -rf lua-hiredis
 #
 #
 #
-RUN apt-get purge -y build-essential git make ca-certificates libatlas-base-dev ; apt-get autoremove -y ; apt-get autoclean
+RUN apt-get purge -y build-essential git make ca-certificates libevent-dev libatlas-base-dev ; apt-get autoremove -y ; apt-get autoclean
 #
 #
 #

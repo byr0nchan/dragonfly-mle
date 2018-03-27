@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <linux/limits.h>
 
+#include "selftest.h"
 #include "analyzer-threads.h"
 
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
@@ -70,22 +71,25 @@ void print_usage()
 
 int main(int argc, char **argv)
 {
-	struct stat sb;
-
 	int option = 0;
 	while ((option = getopt(argc, argv, "cipr:v")) != -1)
 	{
 		switch (option)
 		{
+			/* chroot */
 		case 'c':
 			g_chroot = 1;
-			break;;
+			break;
+			;
+			/* drop privilege */
 		case 'p':
 			g_drop_priv = 1;
 			break;
+			/* root directory */
 		case 'r':
 			g_dragonfly_root = strdup(optarg);
 			break;
+			/* verbose */
 		case 'v':
 			g_verbose = 1;
 			break;
@@ -95,25 +99,27 @@ int main(int argc, char **argv)
 		}
 	}
 
+	struct stat sb;
 	if ((lstat(g_dragonfly_root, &sb) < 0) || !S_ISDIR(sb.st_mode))
 	{
 		fprintf(stderr, "DRAGONFLY_ROOT %s does not exist\n", g_dragonfly_root);
 		exit(EXIT_FAILURE);
 	}
 
+	run_self_tests(g_dragonfly_root);
+
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 	pthread_setname_np(pthread_self(), "dragonfly");
-
 	launch_lua_analyzers(g_dragonfly_root);
 
 	while (g_running)
 	{
 		sleep(1);
 	}
-	closelog();
 
-	return (EXIT_SUCCESS);
+	closelog();
+	exit (EXIT_SUCCESS);
 }
 
 /*

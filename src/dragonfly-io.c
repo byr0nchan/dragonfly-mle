@@ -57,33 +57,41 @@ static DF_HANDLE *ipc_open(const char *path, int spec)
 {
         int socket_handle = -1;
         int io_type = -1;
+
         if ((socket_handle = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
         {
                 syslog(LOG_ERR, "unable to create socket: %s\n", strerror(errno));
                 return NULL;
         }
+
         int s;
         struct sockaddr_un addr;
         memset(&addr, 0, sizeof(addr));
 
         addr.sun_family = AF_UNIX;
         strncpy(addr.sun_path, path, strnlen(path, PATH_MAX - 1));
-        unlink(addr.sun_path);
 
-        if (spec && DF_IN)
+        if ((spec & DF_IN)==DF_IN)
         {
+                unlink(addr.sun_path);
                 io_type = DF_SERVER_IPC_TYPE;
                 syslog(LOG_INFO, "Binding to %s\n", addr.sun_path);
+#ifdef __DEBUG__
+                fprintf(stderr, "%s: Binding to %s (DF_IN)\n", __FUNCTION__, path);
+#endif
                 if ((s = bind(socket_handle, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
                         syslog(LOG_ERR, "unable to bind socket: %s\n", strerror(errno));
                         return NULL;
                 }
         }
-        else if (spec && DF_OUT)
+        else if ((spec & DF_OUT)==DF_OUT)
         {
                 io_type = DF_CLIENT_IPC_TYPE;
                 syslog(LOG_INFO, "Connecting to %s\n", addr.sun_path);
+#ifdef __DEBUG__
+                fprintf(stderr, "%s: Connecting to %s (DF_OUT)\n", __FUNCTION__, path);
+#endif
                 if ((s = connect(socket_handle, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
                         syslog(LOG_ERR, "unable to connect socket: %s\n", strerror(errno));
@@ -141,7 +149,7 @@ static int ipc_write_message(DF_HANDLE *dh, char *buffer)
                 return -1;
 
         pthread_mutex_lock(&(dh->io_mutex));
-        int n = write(dh->fd, buffer, len);
+        int n = send(dh->fd, buffer, len, 0);
         pthread_mutex_unlock(&(dh->io_mutex));
         if (n < 0)
         {
@@ -172,8 +180,12 @@ static DF_HANDLE *file_open(const char *path, int spec)
 {
         FILE *fp = NULL;
         int io_type;
-        if (spec && DF_IN)
+
+        if ((spec & DF_IN)==DF_IN)
         {
+#ifdef __DEBUG__
+        fprintf(stderr, "%s: %s (DF_IN)\n", __FUNCTION__, path);
+#endif
                 io_type = DF_IN_FILE_TYPE;
                 if ((fp = fopen(path, "r")) == NULL)
                 {
@@ -181,8 +193,11 @@ static DF_HANDLE *file_open(const char *path, int spec)
                         return NULL;
                 }
         }
-        else if (spec && DF_OUT)
+        else if ((spec & DF_OUT)==DF_OUT)
         {
+#ifdef __DEBUG__
+        fprintf(stderr, "%s: %s (DF_OUT)\n", __FUNCTION__, path);
+#endif
                 io_type = DF_OUT_FILE_TYPE;
                 if ((fp = fopen(path, "a")) == NULL)
                 {
@@ -235,13 +250,13 @@ static int file_rotate(DF_HANDLE *dh)
                  tm.tm_sec);
 
         pthread_mutex_lock(&(dh->io_mutex));
-        if (dh->io_type && DF_IN)
+        if ((dh->io_type & DF_OUT)==DF_OUT)
         {
                 fclose(dh->fp);
                 dh->fp = NULL;
                 rename(dh->path, new_path);
-                syslog(LOG_INFO, "rotated file: %s", dh->path);
-                if ((fp = fopen(dh->path, "r")) != NULL)
+                syslog(LOG_INFO, "rotated file: %s -> %s", dh->path, new_path);
+                if ((fp = fopen(dh->path, "a")) != NULL)
                 {
                         dh->fp = fp;
                         status = 0;
@@ -308,13 +323,13 @@ static void file_close(DF_HANDLE *dh)
  */
 DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
 {
-        if (strncmp("file", uri, 4) == 0)
+        if (strncmp("file://", uri, 7) == 0)
         {
-                return file_open(((const char *)uri + 4), spec);
+                return file_open(((const char *)uri + 7), spec);
         }
-        else if (strncmp("ipc", uri, 3) == 0)
+        else if (strncmp("ipc://", uri, 6) == 0)
         {
-                return ipc_open(((const char *)uri + 3), spec);
+                return ipc_open(((const char *)uri + 6), spec);
         }
         return NULL;
 }
@@ -400,8 +415,10 @@ void dragonfly_io_close(DF_HANDLE *dh)
                 file_close(dh);
         }
         free(dh->path);
+        dh->path = NULL;
         pthread_mutex_destroy(&(dh->io_mutex));
         free(dh);
+        dh = NULL;
 }
 
 /*

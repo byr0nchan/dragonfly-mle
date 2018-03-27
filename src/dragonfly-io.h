@@ -27,9 +27,9 @@
 #include <stdio.h>
 #include <pthread.h>
 
-#define DF_IN 0
-#define DF_OUT 1
-#define DF_ERR 3
+#define DF_IN 1
+#define DF_OUT 2
+#define DF_ERR 4
 
 #define DF_IN_FILE_TYPE 1
 #define DF_OUT_FILE_TYPE 2
