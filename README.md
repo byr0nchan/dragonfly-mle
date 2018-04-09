@@ -1,4 +1,4 @@
-[[doc/images/dragonflymle.png]]
+[[/doc/images/dragonflymle.png]]
 
 # dragonfly-mle
 
