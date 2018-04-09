@@ -54,7 +54,9 @@ int suricata_command_connect()
     /* connect to the Suricata command socket */
     if ((g_command_socket < 0) && (g_command_socket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
     {
-        syslog(LOG_ERR, "unable to create socket: %s (%i)\n", strerror(errno), errno);
+#ifdef __DEBUG__
+        fprintf(stderr,"%s: unable to create socket: %s (%i)\n", __FUNCTION__, strerror(errno), errno);
+#endif    
         return -1;
     }
 
@@ -72,18 +74,22 @@ int suricata_command_connect()
 
     if ((s = connect(g_command_socket, (struct sockaddr *)&addr, sizeof(addr))) < 0)
     {
-        syslog(LOG_ERR, "unable to connect to socket: %s - %s\n", command_path, strerror(errno));
+        syslog(LOG_ERR, "%s: unable to connect to %s: %s (%i)\n", __FUNCTION__, addr.sun_path, strerror(errno), errno);
+#ifdef __DEBUG__
+        fprintf(stderr,"%s: unable to connect %s: %s (%i)\n", __FUNCTION__, addr.sun_path, strerror(errno), errno);
+#endif   
         return -1;
     }
     syslog(LOG_INFO, "%s: %s", __FUNCTION__, command_path);
+
     if ((s = send(g_command_socket, VERSION_MSG, strlen(VERSION_MSG), 0)) < 0)
     {
-        syslog(LOG_ERR, "unable to send socket message: %s\n", strerror(errno));
+        syslog(LOG_ERR, "%s: unable to send socket message: %s\n", __FUNCTION__, strerror(errno));
         return -1;
     }
     if ((s = read(g_command_socket, buffer, sizeof(buffer))) < 0)
     {
-        syslog(LOG_ERR, "unable to read socket message: %s\n", strerror(errno));
+        syslog(LOG_ERR, "%s: unable to read socket message: %s\n", __FUNCTION__, strerror(errno));
         return -1;
     }
     return 0;
@@ -98,8 +104,8 @@ int suricata_add_hostbit(const char *time, const char *hostbit_name, const char 
 {
     int s = -1;
     char *address;
-    char command[256];
-    char *list = strndup(iplist, sizeof(command) - 1);
+    char command[4096];
+    char *list = (char *)iplist;
 
     while ((address = strtok_r(list, " ", &list)))
     {
@@ -116,7 +122,7 @@ int suricata_add_hostbit(const char *time, const char *hostbit_name, const char 
 
         while ((s = send(g_command_socket, command, len, 0)) < 0)
         {
-            syslog(LOG_ERR, "unable to send socket message: %s\n", strerror(errno));
+            syslog(LOG_ERR, "%s: unable to send socket message: %s\n", __FUNCTION__, strerror(errno));
             if (s == ECONNRESET)
             {
                 suricata_command_connect();
@@ -127,7 +133,7 @@ int suricata_add_hostbit(const char *time, const char *hostbit_name, const char 
         memset(command, 0, sizeof(command));
         if ((s = read(g_command_socket, command, sizeof(command))) < 0)
         {
-            syslog(LOG_ERR, "unable to read socket message: %s\n", strerror(errno));
+            syslog(LOG_ERR, "%s: unable to read socket message: %s\n", __FUNCTION__, strerror(errno));
         }
     }
     return 0;

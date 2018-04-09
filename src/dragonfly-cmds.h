@@ -46,6 +46,7 @@
 
 void dragonfly_iprep_init();
 int dragonfly_iprep(lua_State *L);
+int dragonfly_date2epoch(lua_State *L);
 
 #endif
 

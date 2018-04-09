@@ -49,7 +49,9 @@
 #include <suricata-cmds.h>
 #include <dragonfly-cmds.h>
 #include <dragonfly-io.h>
+
 #include <lua-hiredis.h>
+#include <lua-cjson.h>
 
 extern int g_verbose;
 extern int g_chroot;
@@ -130,8 +132,8 @@ static int dragonfly_log(lua_State *L)
 
     ANALYZER_CONFIG *analyzer = (ANALYZER_CONFIG *)pthread_getspecific(g_threadContext);
 
-    char buffer[1024];
-    snprintf(buffer, sizeof(buffer),
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer)-1,
              "{\"timestamp\":\"%s\",\"event_type\":\"%s\",\"notice\":{\"category\":\"%s\",\"message\":\"%s\"}}\n",
              timestamp, analyzer->name, event, message);
     dragonfly_io_write(analyzer->output, buffer);
@@ -155,6 +157,7 @@ void lua_analyzer_loop(lua_State *L, DF_HANDLE *df_input, DF_HANDLE *df_output)
         {
             if (errno == EINTR)
             {
+                syslog(LOG_ERR, "%s: received EINTR", __FUNCTION__);
 #ifdef __DEBUG__
                 fprintf(stderr, "%s: received EINTR\n", __FUNCTION__);
 #endif
@@ -227,13 +230,15 @@ static void *lua_analyzer_thread(void *ptr)
 
     syslog(LOG_INFO, "Loaded %s", lua_analyzer);
 
-    /* globally set redis host and port number in the LUA engine */
     /*
-    lua_pushstring(L, g_redis_host);
-    lua_setglobal(L, "redis_host");
-    lua_pushstring(L, g_redis_port);
-    lua_setglobal(L, "redis_port");
-    */
+     * Load the lua-cjson library:
+     * 
+     *  https://github.com/mpx/lua-cjson
+     * 
+     */
+    luaopen_cjson(L);
+    luaopen_cjson_safe(L);
+    syslog(LOG_INFO, "Loaded lua-cjson library");
 
     /*
      * Load the lua-hiredis library:
@@ -241,15 +246,18 @@ static void *lua_analyzer_thread(void *ptr)
      *  https://github.com/agladysh/lua-hiredis.git
      * 
      */
-
     luaopen_hiredis(L, g_redis_host, g_redis_port);
+    syslog(LOG_INFO, "Loaded lua-hiredis library");
 
     /* register functions */
     lua_pushcfunction(L, dragonfly_log);
-    lua_setglobal(L, "dragonfly_log");
+    lua_setglobal(L, "log_event");
 
     lua_pushcfunction(L, dragonfly_iprep);
-    lua_setglobal(L, "dragonfly_iprep");
+    lua_setglobal(L, "ip_reputation");
+
+    lua_pushcfunction(L, dragonfly_date2epoch);
+    lua_setglobal(L, "date2epoch");
 
     /* initialize the script */
 
@@ -269,7 +277,7 @@ static void *lua_analyzer_thread(void *ptr)
             break;
         }
         if ((analyzer->output = dragonfly_io_open(output_uri, DF_OUT)) == NULL)
-        {
+        { 
             break;
         }
 
@@ -328,18 +336,18 @@ void initialize_configuration(const char *dragonfly_root)
     {
         if (chroot(g_root_dir) != 0)
         {
-            syslog(LOG_ERR, "unable to chroot() to : %s\n", g_root_dir);
+            syslog(LOG_ERR, "unable to chroot() to : %s - %s\n", g_root_dir, strerror(errno));
             exit(EXIT_FAILURE);
         }
         syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
     }
     syslog(LOG_INFO, "chdir: %s\n", getcwd(g_root_dir, PATH_MAX));
 
-    /*
+#ifdef __DEBUG__
     snprintf(g_run_dir, PATH_MAX, "%s/%s", dragonfly_root, RUN_DIR);
     snprintf(g_analyzer_dir, PATH_MAX, "%s/%s", dragonfly_root, ANALYZERS_DIR);
     snprintf(g_config_file, PATH_MAX, "%s/%s", g_analyzer_dir, CONFIG_FILE);
-*/
+#endif
 
     strncpy(g_run_dir, RUN_DIR, PATH_MAX);
     strncpy(g_analyzer_dir, ANALYZERS_DIR, PATH_MAX);
@@ -382,13 +390,13 @@ void initialize_configuration(const char *dragonfly_root)
     {
         g_redis_port = atoi(lua_tostring(L, -1));
     }
-    //fprintf(stderr, "%s: %i\n", __FUNCTION__, g_redis_port);
+
     lua_getglobal(L, "redis_host");
     if (lua_isstring(L, -1))
     {
         g_redis_host = strdup(lua_tostring(L, -1));
     }
-    //fprintf(stderr, "%s: %s\n", __FUNCTION__, g_redis_host);
+    
 
     static struct
     {
@@ -494,8 +502,7 @@ void shutdown_threads()
     }
     destroy_configuration();
 
-    // pthread_key_create(&g_threadContext, thread_context_destroy) != 0)
-    ///pthread_barrier_init(&g_barrier, NULL, g_num_lua_threads + 1)
+    pthread_barrier_destroy(&g_barrier);
 
     g_num_lua_threads = 0;
 }
@@ -522,7 +529,7 @@ void startup_threads(const char *dragonfly_root)
      * Caution: The path below must be defined relative to chdir (g_run_dir) 
      *		so that it works if chroot() is in effect. See above.
      */
-    //TODO:  dragonfly_iprep_init();
+    dragonfly_iprep_init();
 
     for (int i = 0; i < MAX_ANALYZERS; i++)
     {
@@ -543,6 +550,7 @@ void startup_threads(const char *dragonfly_root)
     /*
      * Wait until all analyzer threads are ready
      */
+    sleep (2);
     pthread_barrier_wait(&g_barrier);
 
     if (g_drop_priv)

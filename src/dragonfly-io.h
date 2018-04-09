@@ -24,8 +24,8 @@
 #ifndef _DRAGONFLY_IO_H_
 #define _DRAGONFLY_IO_H_
 
-#include <stdio.h>
-#include <pthread.h>
+#define RUN_DIR "run"
+#define LOG_DIR "log"
 
 #define DF_IN 1
 #define DF_OUT 2
@@ -55,3 +55,4 @@ void dragonfly_io_close(DF_HANDLE *dh);
 void dragonfly_io_rotate(DF_HANDLE *dh);
 
 #endif
+

@@ -21,6 +21,9 @@
  *
  */
 
+
+#ifdef RUN_UNIT_TESTS
+
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -35,7 +38,6 @@
 #include <syslog.h>
 #include <pthread.h>
 
-#ifdef __DEBUG__
 
 #include "analyzer-threads.h"
 #include "dragonfly-io.h"
@@ -368,7 +370,7 @@ void SELF_TEST3(const char *dragonfly_root)
 void SELF_TEST2(const char *dragonfly_root)
 {
 #ifdef _UTEST2_
-#define MAX_TEST2_MESSAGES 100
+#define MAX_TEST2_MESSAGES 1000000
 	fprintf(stderr, "\n\n%s:connecting to redis, sending ping, then disconnecting\n", __FUNCTION__);
 	fprintf(stderr, "-------------------------------------------------------\n");
 
@@ -402,7 +404,6 @@ void SELF_TEST2(const char *dragonfly_root)
 						 "  print(\"setup()\")\n"
 						 "end\n"
 					     "function loop (msg)\n"
-						 "	conn = assert(hiredis.connect())\n"
 						 "  assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
 						 "  count = count + 1\n"
 						 "  local now = os.time()\n"
@@ -496,8 +497,6 @@ void SELF_TEST0(const char *dragonfly_root)
 #endif
 }
 
-#endif
-
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -505,7 +504,7 @@ void SELF_TEST0(const char *dragonfly_root)
  */
 void run_self_tests(const char *dragonfly_root)
 {
-#ifdef __DEBUG__
+
 	SELF_TEST0 (dragonfly_root);
 	SELF_TEST1(dragonfly_root);
 	SELF_TEST2(dragonfly_root);
@@ -513,8 +512,8 @@ void run_self_tests(const char *dragonfly_root)
 	SELF_TEST4(dragonfly_root);
 	SELF_TEST5(dragonfly_root);
 	exit(EXIT_SUCCESS);
-#endif
 }
 /*
  * ---------------------------------------------------------------------------------------
  */
+#endif

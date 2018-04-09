@@ -13,11 +13,11 @@ function setup()
     assert(conn:command("PING") == hiredis.status.PONG)
     
     print ("Reading model......")
-    local file = open(mlpath, "rb") -- r read mode and b binary mode
+    local file = open(mlpath, "rb") -- r read mode 
     local model = file:read ("*a")
     file:close()
 
-    reply = conn:command_line(model)
+    reply = conn:command_line("ML.FOREST.ADD "..model)
     print ("Loaded ML model: ", reply)
 
 end
@@ -29,8 +29,8 @@ end
 function loop(msg)
     command = {}
     local eve = cjson.decode(msg)
-    if eve and eve.event_type == 'flow' and eve.flow.age then
-        -- print (msg)
+    if eve and eve.event_type == 'flow' and (eve.proto=='TCP' or eve.proto=='UDP') then
+       -- print (msg)
 
         -- extract the fields
         total_pkts = eve.flow.pkts_toclient + eve.flow.pkts_toserver
@@ -51,9 +51,8 @@ function loop(msg)
         table.insert(command, "CLASSIFICATION")
 
         local ml_command = table.concat(command, " ")
-        print (ml_command)    
         reply = conn:command_line(ml_command)
-	    print (reply)	    
+	    --print (reply)	    
     end
 end
 

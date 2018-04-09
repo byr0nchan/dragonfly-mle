@@ -72,7 +72,7 @@ void print_usage()
 int main(int argc, char **argv)
 {
 	int option = 0;
-	while ((option = getopt(argc, argv, "cipr:v")) != -1)
+	while ((option = getopt(argc, argv, "cpr:v")) != -1)
 	{
 		switch (option)
 		{
@@ -80,15 +80,17 @@ int main(int argc, char **argv)
 		case 'c':
 			g_chroot = 1;
 			break;
-			;
+			
 			/* drop privilege */
 		case 'p':
 			g_drop_priv = 1;
 			break;
+
 			/* root directory */
 		case 'r':
 			g_dragonfly_root = strdup(optarg);
 			break;
+
 			/* verbose */
 		case 'v':
 			g_verbose = 1;
@@ -106,7 +108,9 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+#ifdef RUN_UNIT_TESTS
 	run_self_tests(g_dragonfly_root);
+#endif
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);

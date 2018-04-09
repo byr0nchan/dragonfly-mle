@@ -63,9 +63,7 @@ extern "C" {
 
 static char *g_lua_redis_host = '\0';
 static int g_lua_redis_port = 0;
-/*
-#include <lua.h>
-*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <lauxlib.h>
@@ -378,6 +376,37 @@ static int push_reply(lua_State *L, redisReply *pReply)
     return 1;
 }
 
+static int lconn_command_line(lua_State *L)
+{
+    redisContext *pContext = check_connection(L, 1);
+
+    if (lua_gettop(L) != 2)
+    {
+        return luaL_error(L, "expecting exactly 1 arguments");
+    }
+
+    const char *command = luaL_checkstring(L, 2);
+
+    int nret = 0;
+
+    redisReply *pReply = (redisReply *)redisCommand(pContext, command);
+    if (pReply == NULL)
+    {
+        /* TODO: Shouldn't we clear the context error state somehow after this? */
+        return push_error(L, pContext);
+    }
+
+    nret = push_reply(L, pReply);
+
+    /*
+  * TODO: Not entirely safe: if above code throws error, reply object is leaked.
+  */
+    freeReplyObject(pReply);
+    pReply = NULL;
+
+    return nret;
+}
+
 static int lconn_command(lua_State *L)
 {
     redisContext *pContext = check_connection(L, 1);
@@ -476,6 +505,7 @@ static int lconn_tostring(lua_State *L)
 static const luaL_Reg M[] =
     {
         {"command", lconn_command},
+        {"command_line", lconn_command_line},
         {"append_command", lconn_append_command},
         {"get_reply", lconn_get_reply},
 
@@ -500,7 +530,7 @@ static int lhiredis_connect(lua_State *L)
         /* TODO: Use errno if err is REDIS_ERR_IO */
         luaL_checkstack(L, 3, "not enough stack to push error");
         lua_pushnil(L);
-        lua_pushstring(L,"exceeded the number of allowable redis connections");
+        lua_pushstring(L, "exceeded the number of allowable redis connections");
         lua_pushnumber(L, 3);
         return 3;
     }
@@ -535,7 +565,7 @@ static int lhiredis_connect(lua_State *L)
 
     /* update connection count */
     lua_pushlightuserdata(L, (void *)L);
-    lua_pushnumber(L, (numConnections+1));  
+    lua_pushnumber(L, (numConnections + 1));
     lua_settable(L, LUA_REGISTRYINDEX);
 
     luaL_checkstack(L, 1, "not enough stack to create connection");
@@ -666,7 +696,7 @@ LUALIB_API int luaopen_hiredis(lua_State *L, const char *redis_host, int redis_p
   */
     luaL_register(L, "hiredis", E);
 
-/* Register module information 
+    /* Register module information 
   lua_pushliteral(L, LUAHIREDIS_VERSION);
   lua_setfield(L, -2, "_VERSION");
 
@@ -676,7 +706,6 @@ LUALIB_API int luaopen_hiredis(lua_State *L, const char *redis_host, int redis_p
   lua_pushliteral(L, LUAHIREDIS_DESCRIPTION);
   lua_setfield(L, -2, "_DESCRIPTION");
 */
-
 
     /*
   * Register enums
@@ -720,7 +749,7 @@ LUALIB_API int luaopen_hiredis(lua_State *L, const char *redis_host, int redis_p
 
     /* Initialize the number of redis connection count */
     lua_pushlightuserdata(L, (void *)L);
-    lua_pushnumber(L, 0);  
+    lua_pushnumber(L, 0);
     lua_settable(L, LUA_REGISTRYINDEX);
 
     return 1;
