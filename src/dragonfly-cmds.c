@@ -49,29 +49,36 @@
 #include <dragonfly-cmds.h>
 
 extern int g_verbose;
-static int g_iprep = 0;
-
+extern const char *g_suricata_command_path;
 /*
  * ---------------------------------------------------------------------------------------
  *
  * ---------------------------------------------------------------------------------------
  */
-void dragonfly_iprep_init(const char *command_socket_path)
+void dragonfly_iprep_init()
 {
+        if (g_suricata_command_path)
+        {
         /*
          * Establish connnection with the Suricata command channel, used for hostbits, if it exists
          * 
          * Caution: suri_command_connect() operates relative to chdir (g_run_dir) 
          *	    so that it works if chroot() is in effect. See above.
          */
-        if (suricata_command_connect(command_socket_path) < 0)
-        {
+
+                if (suricata_command_connect() < 0)
+                {
 #ifdef __DEBUG__
-                fprintf(stderr, "%s: failed to connect\n", __FUNCTION__);
+                fprintf(stderr, "%s: unable to open %s\n", __FUNCTION__,g_suricata_command_path);
 #endif
-                syslog(LOG_ERR, "suricata_command_connect failed");
+                syslog(LOG_ERR,  "%s: unable to open %s\n", __FUNCTION__,g_suricata_command_path);
+                        return;
+                }
+#ifdef __DEBUG__
+                fprintf(stderr, "%s: suricata_command socket detected\n", __FUNCTION__);
+#endif
+                syslog(LOG_ERR, "suricata_command socket detected");
         }
-        g_iprep = 1;
 }
 
 /*
@@ -101,7 +108,7 @@ int dragonfly_date2epoch(lua_State *L)
 int dragonfly_iprep(lua_State *L)
 {
         // Is there a connection to the command socket?
-        if (!g_iprep)
+        if (!g_suricata_command_path)
         {
 #ifdef __DEBUG__
                 fprintf(stderr, "%s: failed to connect\n", __FUNCTION__);

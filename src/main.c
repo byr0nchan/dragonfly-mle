@@ -37,7 +37,7 @@
 #include <sys/stat.h>
 #include <linux/limits.h>
 
-#include "selftest.h"
+#include "test.h"
 #include "analyzer-threads.h"
 
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
@@ -51,6 +51,7 @@ uint64_t g_msgSubscribed = 0;
 uint64_t g_msgReceived = 0;
 uint64_t g_running = 1;
 char *g_dragonfly_root = DRAGONFLY_DIR;
+char *g_suricata_command_path = NULL;
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -72,7 +73,7 @@ void print_usage()
 int main(int argc, char **argv)
 {
 	int option = 0;
-	while ((option = getopt(argc, argv, "cpr:v")) != -1)
+	while ((option = getopt(argc, argv, "cpr:s:v")) != -1)
 	{
 		switch (option)
 		{
@@ -91,10 +92,16 @@ int main(int argc, char **argv)
 			g_dragonfly_root = strdup(optarg);
 			break;
 
+			/* suricata command socket */
+		case 's':
+			g_suricata_command_path = strdup(optarg);
+			break;
+
 			/* verbose */
 		case 'v':
 			g_verbose = 1;
 			break;
+
 		default:
 			print_usage();
 			exit(EXIT_FAILURE);
@@ -109,6 +116,7 @@ int main(int argc, char **argv)
 	}
 
 #ifdef RUN_UNIT_TESTS
+	fprintf(stderr,"Running unit tests\n");
 	run_self_tests(g_dragonfly_root);
 #endif
 

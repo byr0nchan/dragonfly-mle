@@ -1,30 +1,75 @@
-#
+# ------------------------------------------------------------------
 # dragonfly build
-#
+# ------------------------------------------------------------------
 
 CC = gcc
-CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__ 
-# 
-#UNIT_TESTS = -DRUN_UNIT_TESTS -D_UTEST2_
-INCLUDES = -I. -I/usr/include/lua5.1/
+CFLAGS = -O2 -Wall -march=native -Werror
+INCLUDES = -I. -I./test -I./lib/lua-cjson -I./lib/lua-hiredis -I/usr/include/lua5.1/
+LIBS = -levent -lpthread -lluajit-5.1 -lhiredis -lm
 LFLAGS = -L.
 
-LIBS = -levent -lpthread -lluajit-5.1 -lhiredis -lm
-SRCS = main.c selftest.c lua-hiredis.c dragonfly-cmds.c analyzer-threads.c suricata-cmds.c \
-       lua-cjson.c strbuf.c fpconv.c io-file.c io-pipe.c dragonfly-io.c
-OBJS = $(SRCS:.c=.o)
+TFLAGS =
+DFLAGS =  
+
+# -----------------------------------------------------------------
+# core files
+# -----------------------------------------------------------------
+SRCS = main.c analyzer-threads.c dragonfly-cmds.c suricata-cmds.c 
+
+# ------------------------------------------------------------------
+# I/O modules
+# ------------------------------------------------------------------
+SRCS1 = dragonfly-io.c io-file.c io-pipe.c io-tail.c
+
+# ------------------------------------------------------------------
+# third party open-source libraries
+# ------------------------------------------------------------------
+SRCS2 = lib/lua-hiredis/lua-hiredis.c lib/lua-cjson/lua-cjson.c \
+        lib/lua-cjson/strbuf.c lib/lua-cjson/fpconv.c 
+
+# ------------------------------------------------------------------
+# unit test files
+# ------------------------------------------------------------------
+SRCS3 = test/test.c test/test0.c test/test1.c test/test2.c \
+		test/test3.c test/test4.c test/test5.c test/test6.c \
+		test/test7.c 
+
+OBJS = $(SRCS:.c=.o) $(SRCS1:.c=.o) $(SRCS2:.c=.o) $(SRCS3:.c=.o)
 
 MAIN = dragonfly
+DEBUG_BIN = dragonfly-debug
+TEST_BIN = dragonfly-test
 
-.PHONY: depend clean
-
+# ------------------------------------------------------------------
+# production build
+# ------------------------------------------------------------------
 all: $(MAIN)
-
 $(MAIN): $(OBJS) 
-	$(CC) $(CFLAGS) $(UNIT_TESTS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS) 
+	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS) 
 
+# ------------------------------------------------------------------
+# test build
+# ------------------------------------------------------------------
+test: TEST_FLAGS =-DRUN_UNIT_TESTS -D__DEBUG__ 
+test: $(TEST_BIN) 
+$(TEST_BIN): $(OBJS) 
+	$(CC) $(CFLAGS) $(TFLAGS) $(INCLUDES) -o $(TEST_BIN) $(OBJS) $(LFLAGS) $(LIBS)
+
+# ------------------------------------------------------------------
+# debug build
+# ------------------------------------------------------------------
+debug: DEBUG_FLAGS = -g -D__DEBUG__ 
+debug: $(DEBUG_BIN) 
+$(DEBUG_BIN): $(OBJS) 
+	$(CC) $(CFLAGS) $(DFLAGS) $(INCLUDES) -o $(DEBUG_BIN) $(OBJS) $(LFLAGS) $(LIBS)
+
+# ------------------------------------------------------------------
+# misc
+# ------------------------------------------------------------------
 .c.o:
-	$(CC) $(CFLAGS) $(UNIT_TESTS) $(INCLUDES) -c $<  -o $@
+	$(CC) $(CFLAGS) $(TEST_FLAGS) $(INCLUDES) -c $<  -o $@
+
+.PHONY: test clean
 
 clean:
-	$(RM) *.o *~ $(MAIN)
+	$(RM) test/*.o lib/lua-cjson/*.o lib/lua-hiredis/*.o *~ $(MAIN) $(DEBUG_BIN) $(TEST_BIN)

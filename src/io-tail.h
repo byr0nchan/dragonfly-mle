@@ -21,9 +21,15 @@
  *
  */
 
-#ifndef _SELF_TEST_H_
-#define _SELF_TEST_H_
+#ifndef _IO_TAIL_H_
+#define _IO_TAIL_H_
 
-void run_self_tests(const char *dragonfly_root);
+/*
+ * Tail IO
+ */
+
+DF_HANDLE *tail_open(const char *path, int spec);
+int tail_read_line(DF_HANDLE *dh, char *buffer, int max);
+void tail_close(DF_HANDLE *dh);
 
 #endif

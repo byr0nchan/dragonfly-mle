@@ -80,6 +80,11 @@ DF_HANDLE *file_open(const char *path, int spec)
                         syslog(LOG_ERR, "unable to open: %s - %s\n", path, strerror(errno));
                         return NULL;
                 }
+                if (setvbuf(fp, NULL, _IOLBF, 4096) < 0)
+                {
+                        syslog(LOG_ERR, "unable to line mode: %s - %s\n", path, strerror(errno));
+                        return NULL;  
+                }
         }
         else
         {
@@ -170,17 +175,22 @@ int file_read_line(DF_HANDLE *dh, char *buffer, int max)
  */
 int file_write_line(DF_HANDLE *dh, char *buffer)
 {
+
         pthread_mutex_lock(&(dh->io_mutex));
         int n = fputs(buffer, dh->fp);
         pthread_mutex_unlock(&(dh->io_mutex));
         if (n < 0)
         {
+#ifdef __DEBUG__
+                fprintf (stderr,"%s: line %d: %s",__FUNCTION__, __LINE__, strerror(errno));
+#endif
                 syslog(LOG_ERR, "write error: %s", strerror(errno));
                 if (n == 0 || n == EIO)
                 {
                         //file_reopen(dh);
                 }
         }
+        //fflush (dh->fp);
         return n;
 }
 

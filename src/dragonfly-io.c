@@ -33,6 +33,7 @@
 #include "dragonfly-io.h"
 
 #include "io-file.h"
+#include "io-tail.h"
 #include "io-pipe.h"
 
 /*
@@ -45,6 +46,10 @@ DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
         if (strncmp("file://", uri, 7) == 0)
         {
                 return file_open(((const char *)uri + 7), spec);
+        }
+        else if (strncmp("tail://", uri, 7) == 0)
+        {
+                return tail_open(((const char *)uri + 7), spec);
         }
         else if (strncmp("ipc://", uri, 6) == 0)
         {
@@ -90,8 +95,11 @@ int dragonfly_io_read(DF_HANDLE *dh, char *buffer, int len)
         {
                 return ipc_read_message(dh, buffer, len);
         }
-        else if ((dh->io_type == DF_IN_FILE_TYPE) ||
-                 (dh->io_type == DF_OUT_FILE_TYPE))
+        else if (dh->io_type == DF_IN_TAIL_TYPE)
+        {
+                return tail_read_line(dh, buffer, len);
+        }
+        else if (dh->io_type == DF_IN_FILE_TYPE)
         {
                 return file_read_line(dh, buffer, len);
         }
@@ -108,8 +116,7 @@ void dragonfly_io_flush(DF_HANDLE *dh)
         if (!dh)
                 return;
 
-        if ((dh->io_type == DF_IN_FILE_TYPE) ||
-            (dh->io_type == DF_OUT_FILE_TYPE))
+        if (dh->io_type == DF_OUT_FILE_TYPE)
         {
                 fflush(dh->fp);
         }
@@ -128,6 +135,10 @@ void dragonfly_io_close(DF_HANDLE *dh)
             (dh->io_type == DF_CLIENT_IPC_TYPE))
         {
                 ipc_close(dh);
+        }
+        else if (dh->io_type == DF_IN_TAIL_TYPE)
+        {
+                tail_close(dh);
         }
         else if ((dh->io_type == DF_IN_FILE_TYPE) ||
                  (dh->io_type == DF_OUT_FILE_TYPE))

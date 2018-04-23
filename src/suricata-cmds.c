@@ -43,6 +43,7 @@
 #define VERSION_MSG "{ \"version\": \"0.1\" }"
 
 static int g_command_socket = -1;
+extern const char *g_suricata_command_path;
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -53,10 +54,7 @@ int suricata_command_connect()
 {
     /* connect to the Suricata command socket */
     if ((g_command_socket < 0) && (g_command_socket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-    {
-#ifdef __DEBUG__
-        fprintf(stderr,"%s: unable to create socket: %s (%i)\n", __FUNCTION__, strerror(errno), errno);
-#endif    
+    { 
         return -1;
     }
 
@@ -65,22 +63,19 @@ int suricata_command_connect()
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    char command_path[PATH_MAX];
-
-    snprintf(command_path, PATH_MAX - 1, "%s/suricata-command.ipc", RUN_DIR);
-
-    strncpy(addr.sun_path, command_path, sizeof(addr.sun_path));
+  
+    strncpy(addr.sun_path, g_suricata_command_path, sizeof(addr.sun_path));
     memset(buffer, 0, sizeof(buffer));
 
     if ((s = connect(g_command_socket, (struct sockaddr *)&addr, sizeof(addr))) < 0)
     {
-        syslog(LOG_ERR, "%s: unable to connect to %s: %s (%i)\n", __FUNCTION__, addr.sun_path, strerror(errno), errno);
+        syslog(LOG_ERR, "%s: did not detect %s: %s (%i)\n", __FUNCTION__, addr.sun_path, strerror(errno), errno);
 #ifdef __DEBUG__
-        fprintf(stderr,"%s: unable to connect %s: %s (%i)\n", __FUNCTION__, addr.sun_path, strerror(errno), errno);
+        fprintf(stderr,"%s: did not detect %s: %s (%i)\n", __FUNCTION__, addr.sun_path, strerror(errno), errno);
 #endif   
         return -1;
     }
-    syslog(LOG_INFO, "%s: %s", __FUNCTION__, command_path);
+    syslog(LOG_INFO, "%s: %s", __FUNCTION__, g_suricata_command_path);
 
     if ((s = send(g_command_socket, VERSION_MSG, strlen(VERSION_MSG), 0)) < 0)
     {

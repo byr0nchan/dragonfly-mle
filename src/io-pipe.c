@@ -79,7 +79,7 @@ int ipc_reopen(DF_HANDLE *dh)
 #endif
                 if ((s = connect(dh->fd, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
-                        syslog(LOG_ERR, "unable to connect socket: %s\n", strerror(errno));
+                        syslog(LOG_ERR, "unable to connect socket: %s - %s\n", dh->path, strerror(errno));
                         return -1;
                 }
         }
@@ -143,7 +143,7 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
 #endif
                 if ((s = connect(socket_handle, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
-                        syslog(LOG_ERR, "unable to connect socket: %s\n", strerror(errno));
+                        syslog(LOG_ERR, "unable to connect socket: %s - %s\n",  addr.sun_path, strerror(errno));
                         return NULL;
                 }
         }
