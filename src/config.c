@@ -67,6 +67,10 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
         {.key = "script", .type = LUA_TSTRING}};
 
     lua_getglobal(L, "inputs");
+    if (lua_type(L, -1) != LUA_TTABLE)
+    {
+        return number_of_inputs;
+    }
     luaL_checktype(L, -1, LUA_TTABLE);
     for (int i = 0; i < max; i++)
     {
@@ -153,6 +157,10 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
         {.key = "script", .type = LUA_TSTRING}};
 
     lua_getglobal(L, "analyzers");
+    if (lua_type(L, -1) != LUA_TTABLE)
+    {
+        return number_of_analyzers;
+    }
     luaL_checktype(L, -1, LUA_TTABLE);
 
     for (int i = 1; i < max; i++)
@@ -232,6 +240,10 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
         {.key = "uri", .type = LUA_TSTRING}};
 
     lua_getglobal(L, "outputs");
+    if (lua_type(L, -1) != LUA_TTABLE)
+    {
+        return number_of_outputs;
+    }
     luaL_checktype(L, -1, LUA_TTABLE);
     for (int i = 0; i < max; i++)
     {
@@ -272,23 +284,30 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
         lua_pop(L, 1);
     }
     return number_of_outputs;
-}/*
+} /*
  * ---------------------------------------------------------------------------------------
  *
  * ---------------------------------------------------------------------------------------
  */
 int load_responder_config(lua_State *L, RESPONDER_CONFIG responder_list[], int max)
 {
-    int number_of_outputs = 0;
+#ifdef __DEBUG__
+    fprintf(stderr, "%s:%i\n", __FUNCTION__, __LINE__);
+#endif
+    int number_of_responders = 0;
     static struct
     {
         const char *key;
         int type;
     } fields[] = {
         {.key = "tag", .type = LUA_TSTRING},
-        {.key = "parameter", .type = LUA_TSTRING}};
+        {.key = "param", .type = LUA_TSTRING}};
 
     lua_getglobal(L, "responders");
+    if (lua_type(L, -1) != LUA_TTABLE)
+    {
+        return number_of_responders;
+    }
     luaL_checktype(L, -1, LUA_TTABLE);
     for (int i = 0; i < max; i++)
     {
@@ -310,16 +329,16 @@ int load_responder_config(lua_State *L, RESPONDER_CONFIG responder_list[], int m
             {
                 responder_list[i].tag = strdup(lua_tostring(L, -1));
 #ifdef __DEBUG__
-                fprintf(stderr, "  [OUTPUT] tag: %s, ", responder_list[i].tag);
+                fprintf(stderr, "  [RESPONDER] tag: %s, ", responder_list[i].tag);
 #endif
             }
             break;
             case 1:
             {
-                number_of_outputs++;
-                responder_list[i].parameter = strndup(lua_tostring(L, -1), PATH_MAX);
+                number_of_responders++;
+                responder_list[i].param = strndup(lua_tostring(L, -1), PATH_MAX);
 #ifdef __DEBUG__
-                fprintf(stderr, "parameter: %s\n", responder_list[i].parameter);
+                fprintf(stderr, "param: %s\n", responder_list[i].param);
 #endif
             }
             break;
@@ -328,7 +347,7 @@ int load_responder_config(lua_State *L, RESPONDER_CONFIG responder_list[], int m
         }
         lua_pop(L, 1);
     }
-    return number_of_outputs;
+    return number_of_responders;
 }
 
 /*

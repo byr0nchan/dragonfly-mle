@@ -55,7 +55,7 @@ typedef struct _RESPONDER_CONFIG_
 {
     char *tag;
     char *name;
-    char *parameter;
+    char *param;
 } RESPONDER_CONFIG;
 
 int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max);

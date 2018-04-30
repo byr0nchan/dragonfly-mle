@@ -52,6 +52,7 @@
 #include "worker-threads.h"
 #include "dragonfly-cmds.h"
 #include "dragonfly-io.h"
+#include "responder.h"
 #include "config.h"
 #include "param.h"
 
@@ -95,6 +96,7 @@ static BUFFER_QUEUE g_buffer_queue;
 static INPUT_CONFIG g_input_list[MAX_INPUT_STREAMS];
 static INPUT_CONFIG g_flywheel_list[MAX_INPUT_STREAMS];
 static OUTPUT_CONFIG g_output_list[MAX_OUTPUT_STREAMS];
+static RESPONDER_CONFIG g_responder_list[MAX_RESPONDER_COMMANDS];
 static ANALYZER_CONFIG g_analyzer_list[MAX_ANALYZER_STREAMS];
 
 static pthread_t g_thread[(MAX_INPUT_STREAMS * 2) + MAX_OUTPUT_STREAMS + MAX_ANALYZER_STREAMS];
@@ -201,6 +203,25 @@ int output_event(lua_State *L)
  *
  * ---------------------------------------------------------------------------------------
  */
+int response_event(lua_State *L)
+{
+    if (lua_gettop(L) != 2)
+    {
+        return luaL_error(L, "expecting exactly 2 arguments");
+    }
+
+    const char *tag = luaL_checkstring(L, 1);
+    const char *command = luaL_checkstring(L, 2);
+    char response [2048];
+
+    return responder_event(tag, command, response, sizeof(response));
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
 void lua_flywheel_loop(INPUT_CONFIG *flywheel)
 {
     while (g_running)
@@ -234,11 +255,10 @@ static void *lua_flywheel_thread(void *ptr)
     INPUT_CONFIG *flywheel = (INPUT_CONFIG *)ptr;
 
     pthread_detach(pthread_self());
-    // pthread_setname_np(pthread_self(), flywheel->name);
-    pthread_setname_np(pthread_self(), "flywheel");
+    pthread_setname_np(pthread_self(), flywheel->tag);
     pthread_barrier_wait(&g_barrier);
-    syslog(LOG_NOTICE, "Running %s\n", flywheel->tag);
 
+    syslog(LOG_NOTICE, "Running %s\n", flywheel->tag);
     while (g_running)
     {
         if ((flywheel->input = dragonfly_io_open(flywheel->uri, DF_IN)) == NULL)
@@ -297,8 +317,8 @@ static void *lua_input_thread(void *ptr)
 #endif
 
     pthread_detach(pthread_self());
-    //pthread_setname_np(pthread_self(), input->tag);
-    pthread_setname_np(pthread_self(), "input");
+    pthread_setname_np(pthread_self(), input->tag);
+
     /*
      * Set thread name to the file name of the lua script
      */
@@ -331,25 +351,6 @@ static void *lua_input_thread(void *ptr)
     }
     luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE|LUAJIT_MODE_ON);
     syslog(LOG_INFO, "Loaded %s", lua_script);
-
-    /*
-     * Load the lua-cjson library:
-     * 
-     *  https://github.com/mpx/lua-cjson
-     * 
-     */
-    luaopen_cjson(L);
-    luaopen_cjson_safe(L);
-    syslog(LOG_INFO, "Loaded lua-cjson library");
-    /*
-     * Load the lua-hiredis library:
-     * 
-     *  https://github.com/agladysh/lua-hiredis.git
-     *  
-     */
-    // Disabled for the [INPUT] stage
-    //luaopen_hiredis(L, g_redis_host, g_redis_port);
-    //syslog(LOG_INFO, "loaded lua-hiredis library");
 
     /* register functions */
     lua_pushcfunction(L, analyze_event);
@@ -419,8 +420,7 @@ static void *lua_output_thread(void *ptr)
     OUTPUT_CONFIG *output = (OUTPUT_CONFIG *)ptr;
 
     pthread_detach(pthread_self());
-    //thread_setname_np(pthread_self(), output->name);
-    pthread_setname_np(pthread_self(), "output");
+    pthread_setname_np(pthread_self(), output->tag);
 
     pthread_barrier_wait(&g_barrier);
     syslog(LOG_NOTICE, "Running %s\n", output->tag);
@@ -485,8 +485,7 @@ static void *lua_analyzer_thread(void *ptr)
 #endif
 
     pthread_detach(pthread_self());
-    //pthread_setname_np(pthread_self(), analyzer->tag);
-    pthread_setname_np(pthread_self(), "analyzer");
+    pthread_setname_np(pthread_self(), analyzer->tag);
     /*
      * Set thread name to the file name of the lua script
      */
@@ -547,9 +546,24 @@ static void *lua_analyzer_thread(void *ptr)
     lua_pushcfunction(L, output_event);
     lua_setglobal(L, "output_event");
 
-#ifdef __ENABLE_RESPONDERS
-    // TODO:
-#endif
+    /*
+     * Initialize responders commands;
+     */
+    responder_initialize();
+
+    for (int i=0; i<MAX_RESPONDER_COMMANDS; i++)
+    {
+        if (g_responder_list[i].param)
+        {
+            if (responder_setup(g_responder_list[i].tag, g_responder_list[i].param) < 0)
+            {
+                syslog(LOG_ERR, "responder_setup %s failed", g_responder_list[i].tag);
+            }
+        }
+    }
+    lua_pushcfunction(L, response_event);
+    lua_setglobal(L, "response_event");
+
 #ifdef __DATE_FUNCTION__
     lua_pushcfunction(L, dragonfly_date2epoch);
     lua_setglobal(L, "date2epoch");
@@ -720,6 +734,11 @@ void initialize_configuration(const char *dragonfly_root)
     if ((g_num_input_threads = load_inputs_config(L, g_input_list, MAX_INPUT_STREAMS)) <= 0)
     {
         syslog(LOG_ERR, "load_input_config failed");
+        abort();
+    }
+    if ((load_responder_config(L, g_responder_list, MAX_RESPONDER_COMMANDS)) < 0)
+    {
+        syslog(LOG_ERR, "load_responder_config failed");
         abort();
     }
     lua_close(L);

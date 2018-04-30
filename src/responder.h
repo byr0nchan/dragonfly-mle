@@ -15,27 +15,18 @@
  * 02110-1301, USA.
  */
 
-/* 
+/*
  *
  * author Randy Caldejon <rc@counterflowai.com>
  *
  */
 
-#ifndef __PARAM_H__
-#define __PARAM_H__
+#ifndef __RESPONDER_H__
+#define __RESPONDER_H__
 
-#define MAX_IO_VECTOR 64
-#define MAX_WORKER_THREADS 1
-#define MAX_ANALYZER_STREAMS 4
-#define MAX_INPUT_STREAMS (MAX_ANALYZER_STREAMS / 2)
-#define MAX_OUTPUT_STREAMS (MAX_ANALYZER_STREAMS / 2)
-
-#define MAX_RESPONDER_COMMANDS 4
-
-#define MAX_PIPE_LENGTH (MAX_IO_VECTOR * 4)
-#define MAX_DATA_BLOCKS (MAX_PIPE_LENGTH * ((MAX_ANALYZER_STREAMS + MAX_INPUT_STREAMS + MAX_OUTPUT_STREAMS) ) + MAX_IO_VECTOR)
-
-#define _MAX_BUFFER_SIZE_ 4096
-
+void responder_initialize();
+int responder_setup(const char *tag, const char *parameter);
+int responder_event(const char *tag, const char *command, char *response, int max_response);
 
 #endif
+

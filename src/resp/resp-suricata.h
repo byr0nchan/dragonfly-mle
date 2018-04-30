@@ -21,14 +21,11 @@
  *
  */
 
-#ifndef _SURICATA_COMMANDS_
-#define _SURICATA_COMMANDS_
+#ifndef _SURICATA_COMMAND_
+#define _SURICATA_COMMAND_
 
-#include <dragonfly-cmds.h>
-
-DF_HANDLE *suricata_connect(const char *socket_path, int spec);
-int suricata_command(DF_HANDLE *dh, char *command);
-int suricata_add_hostbit(const char* time, const char* hostbit_name, const char*iplist, int expire);
+int suricata_initialize(const char *command_path);
+int suricata_command(const char *command, char* response, int max_response);
 
 #endif
 
