@@ -37,7 +37,7 @@
 
 #include "test.h"
 
-#include "analyzer-threads.h"
+#include "worker-threads.h"
 #include "dragonfly-io.h"
 extern int g_running;
 
@@ -56,16 +56,18 @@ void run_self_tests (const char *dragonfly_root)
 	sleep (2);
 	SELF_TEST2(dragonfly_root);
 	sleep (2);
+	*/
 	SELF_TEST3(dragonfly_root);
+	/*
 	sleep (2);
 	SELF_TEST4(dragonfly_root);
 	sleep (2);
 	SELF_TEST5(dragonfly_root);
 	sleep (2);
 	SELF_TEST6(dragonfly_root);
-	sleep (2);
-	*/
+	sleep (2);	
 	SELF_TEST7(dragonfly_root);
+*/
 	exit(EXIT_SUCCESS);
 }
 /*

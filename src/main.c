@@ -38,7 +38,7 @@
 #include <linux/limits.h>
 
 #include "test.h"
-#include "analyzer-threads.h"
+#include "worker-threads.h"
 
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
 #define DRAGONFLY_DIR "/opt/dragonfly"

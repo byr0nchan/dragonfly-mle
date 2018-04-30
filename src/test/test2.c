@@ -38,7 +38,7 @@
 #include <syslog.h>
 #include <pthread.h>
 
-#include "analyzer-threads.h"
+#include "worker-threads.h"
 #include "dragonfly-io.h"
 
 /*
@@ -89,7 +89,7 @@ void SELF_TEST2(const char *dragonfly_root)
       					 "  local dtg = os.date(\"!%Y-%m-%dT%TZ\",now)\n"
 						 "  event = \"event \"..tostring(count)\n"
 						 "  assert(conn:command(\"SET\", count, dtg,\"5\"))\n"
-						 "  log_event (dtg, event, msg)\n"
+						 "  output_event (dtg, event, msg)\n"
 						 "end\n\n";
 	fp = fopen(script_path,"w+");
 	if (!fp)

@@ -21,33 +21,14 @@
  *
  */
 
-#ifndef _DRAGONFLY_CMD_H_
-#define _DRAGONFLY_CMD_H_
+#ifndef _SURICATA_COMMANDS_
+#define _SURICATA_COMMANDS_
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include <dragonfly-cmds.h>
 
-#ifdef ENABLE_JIT
-#include <luajit-2.0/luajit.h>
-#endif
-
-#define MOBSTER_ROOT "DRAGONFLY_ROOT"
-#define RUN_DIR "run"
-#define LOG_DIR "log"
-#define ANALYZERS_DIR "analyzers"
-#define CONFIG_FILE "config.lua"
-
-#define USER_NOBODY "nobody"
-
-#define MOBSTER_ROOT_DIR "/opt/dragonfly"
-#define MOBSTER_LOG_DIR "log"
-#define MOBSTER_LOG_NAME "dragonfly.log"
-
-int dragonfly_date2epoch(lua_State *L);
-int dragonfly_output(lua_State *L);
+DF_HANDLE *suricata_connect(const char *socket_path, int spec);
+int suricata_command(DF_HANDLE *dh, char *command);
+int suricata_add_hostbit(const char* time, const char* hostbit_name, const char*iplist, int expire);
 
 #endif
-
-
 

@@ -35,6 +35,9 @@
 #include <pthread.h>
 #include <errno.h>
 #include <limits.h>
+#include <sys/time.h>
+#include <time.h>
+#include <fcntl.h>
 
 #include <dragonfly-io.h>
 
@@ -46,7 +49,7 @@
 int ipc_reopen(DF_HANDLE *dh)
 {
         int s;
-        close (dh->fd);
+        close(dh->fd);
         if ((dh->fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
         {
                 syslog(LOG_ERR, "unable to create socket: %s\n", strerror(errno));
@@ -63,7 +66,7 @@ int ipc_reopen(DF_HANDLE *dh)
                 unlink(dh->path);
                 syslog(LOG_INFO, "Binding to %s\n", dh->path);
 #ifdef __DEBUG__
-                fprintf(stderr, "%s: Binding to %s (DF_IN)\n", __FUNCTION__,dh->path);
+                fprintf(stderr, "%s: Binding to %s (DF_IN)\n", __FUNCTION__, dh->path);
 #endif
                 if ((s = bind(dh->fd, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
@@ -71,7 +74,7 @@ int ipc_reopen(DF_HANDLE *dh)
                         return -1;
                 }
         }
-        else  if (dh->io_type == DF_CLIENT_IPC_TYPE)
+        else if (dh->io_type == DF_CLIENT_IPC_TYPE)
         {
                 syslog(LOG_INFO, "Connecting to %s\n", dh->path);
 #ifdef __DEBUG__
@@ -88,6 +91,30 @@ int ipc_reopen(DF_HANDLE *dh)
 
         return 0;
 }
+#ifdef COMMENT_OUT
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+static int ipc_set_nonblock(int fd)
+{
+        int fd_flags = fcntl(fd, F_GETFL);
+        if (fd_flags < 0)
+        {
+                close(fd);
+                syslog(LOG_ERR, "unable to fcntl: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+        }
+        if (fcntl(fd, F_SETFL, fd_flags | O_NONBLOCK) < 0)
+        {
+                close(fd);
+                syslog(LOG_ERR, "unable to fcntl: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+        }
+        return fd;
+}
+#endif
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -133,6 +160,8 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
                         syslog(LOG_ERR, "unable to bind socket: %s\n", strerror(errno));
                         return NULL;
                 }
+                // TODO: need to experiment with this!
+                //ipc_set_nonblock(socket_handle);
         }
         else if ((spec & DF_OUT) == DF_OUT)
         {
@@ -143,7 +172,7 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
 #endif
                 if ((s = connect(socket_handle, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
-                        syslog(LOG_ERR, "unable to connect socket: %s - %s\n",  addr.sun_path, strerror(errno));
+                        syslog(LOG_ERR, "unable to connect socket: %s - %s\n", addr.sun_path, strerror(errno));
                         return NULL;
                 }
         }
@@ -163,7 +192,6 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
         dh->fd = socket_handle;
         dh->io_type = io_type;
         dh->path = strndup(addr.sun_path, PATH_MAX);
-        pthread_mutex_init(&(dh->io_mutex), NULL);
         syslog(LOG_INFO, "%s: %s", __FUNCTION__, dh->path);
 
         return dh;
@@ -172,20 +200,43 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
 /*
  * ---------------------------------------------------------------------------------------
  *
+ * 
  * ---------------------------------------------------------------------------------------
  */
 int ipc_read_message(DF_HANDLE *dh, char *buffer, int len)
 {
-        pthread_mutex_lock(&(dh->io_mutex));
         int n = read(dh->fd, buffer, len);
-        pthread_mutex_unlock(&(dh->io_mutex));
         if (n < 0)
         {
                 syslog(LOG_ERR, "read error: %s", strerror(errno));
+                perror("read");
+                exit(EXIT_FAILURE);
         }
         return n;
 }
 
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+int ipc_read_messages(DF_HANDLE *dh, char **buffer, int len, int max)
+{
+        int n = 0;
+        int v = 0;
+        do
+        {
+                n = read(dh->fd, buffer[v]++, (len - 1));
+                if (n < 0)
+                {
+                        syslog(LOG_ERR, "read error: %s", strerror(errno));
+                        perror("read");
+                        exit(EXIT_FAILURE);
+                }
+                buffer[v][n] = '\0';
+        } while ((n > 0) && (v < max));
+        return v;
+}
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -197,9 +248,7 @@ int ipc_write_message(DF_HANDLE *dh, char *buffer)
         if (len == DF_MAX_BUFFER_LEN)
                 return -1;
 
-        pthread_mutex_lock(&(dh->io_mutex));
         int n = send(dh->fd, buffer, len, 0);
-        pthread_mutex_unlock(&(dh->io_mutex));
         if (n < 0)
         {
                 syslog(LOG_ERR, "write error: %s", strerror(errno));
@@ -218,10 +267,8 @@ int ipc_write_message(DF_HANDLE *dh, char *buffer)
  */
 void ipc_close(DF_HANDLE *dh)
 {
-        pthread_mutex_unlock(&(dh->io_mutex));
         close(dh->fd);
         dh->fd = -1;
-        pthread_mutex_unlock(&(dh->io_mutex));
 }
 
 /*

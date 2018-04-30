@@ -30,12 +30,14 @@
 #define DF_IN 1
 #define DF_OUT 2
 #define DF_ERR 4
+#define DF_CMD 8
 
 #define DF_IN_FILE_TYPE 1
 #define DF_OUT_FILE_TYPE 2
 #define DF_CLIENT_IPC_TYPE  3
 #define DF_SERVER_IPC_TYPE  4
 #define DF_IN_TAIL_TYPE 5
+#define DF_CMD_SURICATA 6
 
 #define DF_MAX_BUFFER_LEN 2048
 
@@ -45,12 +47,13 @@ typedef struct _DF_HANDLE_
     int fd;
     int io_type;
     char *path;
-    pthread_mutex_t io_mutex;
+   // pthread_mutex_t io_mutex;
 } DF_HANDLE;
 
 DF_HANDLE *dragonfly_io_open(const char *path, int spec);
 int dragonfly_io_write(DF_HANDLE *dh, char *buffer);
 int dragonfly_io_read(DF_HANDLE *dh, char *buffer, int max);
+int dragonfly_io_read_lines(DF_HANDLE *dh, char *buffer[], int len, int max);
 void dragonfly_io_flush(DF_HANDLE *dh);
 void dragonfly_io_close(DF_HANDLE *dh);
 void dragonfly_io_rotate(DF_HANDLE *dh);

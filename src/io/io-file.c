@@ -103,7 +103,7 @@ DF_HANDLE *file_open(const char *path, int spec)
         dh->fp = fp;
         dh->io_type = io_type;
         dh->path = strndup(file_path, PATH_MAX);
-        pthread_mutex_init(&(dh->io_mutex), NULL);
+        //pthread_mutex_init(&(dh->io_mutex), NULL);
         syslog(LOG_INFO, "%s: %s", __FUNCTION__, path);
 
         return dh;
@@ -130,7 +130,7 @@ int file_rotate(DF_HANDLE *dh)
                  tm.tm_min,
                  tm.tm_sec);
 
-        pthread_mutex_lock(&(dh->io_mutex));
+        //pthread_mutex_lock(&(dh->io_mutex));
         if ((dh->io_type & DF_OUT) == DF_OUT)
         {
                 fclose(dh->fp);
@@ -143,7 +143,7 @@ int file_rotate(DF_HANDLE *dh)
                         status = 0;
                 }
         }
-        pthread_mutex_unlock(&(dh->io_mutex));
+        //pthread_mutex_unlock(&(dh->io_mutex));
 
         return status;
 }
@@ -155,9 +155,9 @@ int file_rotate(DF_HANDLE *dh)
  */
 int file_read_line(DF_HANDLE *dh, char *buffer, int max)
 {
-        pthread_mutex_lock(&(dh->io_mutex));
+        //pthread_mutex_lock(&(dh->io_mutex));
         char *s = fgets(buffer, max, dh->fp);
-        pthread_mutex_unlock(&(dh->io_mutex));
+        //pthread_mutex_unlock(&(dh->io_mutex));
 
         if (s != NULL)
         {
@@ -176,9 +176,9 @@ int file_read_line(DF_HANDLE *dh, char *buffer, int max)
 int file_write_line(DF_HANDLE *dh, char *buffer)
 {
 
-        pthread_mutex_lock(&(dh->io_mutex));
+        //pthread_mutex_lock(&(dh->io_mutex));
         int n = fputs(buffer, dh->fp);
-        pthread_mutex_unlock(&(dh->io_mutex));
+        //pthread_mutex_unlock(&(dh->io_mutex));
         if (n < 0)
         {
 #ifdef __DEBUG__
@@ -190,7 +190,6 @@ int file_write_line(DF_HANDLE *dh, char *buffer)
                         //file_reopen(dh);
                 }
         }
-        //fflush (dh->fp);
         return n;
 }
 
@@ -201,10 +200,10 @@ int file_write_line(DF_HANDLE *dh, char *buffer)
  */
 void file_close(DF_HANDLE *dh)
 {
-        pthread_mutex_lock(&(dh->io_mutex));
+        //pthread_mutex_lock(&(dh->io_mutex));
         fclose(dh->fp);
         dh->fp = NULL;
-        pthread_mutex_unlock(&(dh->io_mutex));
+        //pthread_mutex_unlock(&(dh->io_mutex));
 }
 
 /*

@@ -30,6 +30,7 @@
 DF_HANDLE *ipc_open(const char *path, int spec);
 int ipc_write_message(DF_HANDLE *dh, char *buffer);
 int ipc_read_message(DF_HANDLE *dh, char *buffer, int max);
+int ipc_read_messages(DF_HANDLE *dh, char **buffer, int len, int max);
 void ipc_flush(DF_HANDLE *dh);
 void ipc_close(DF_HANDLE *dh);
 void ipc_rotate(DF_HANDLE *dh);

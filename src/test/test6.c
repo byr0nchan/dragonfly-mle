@@ -37,7 +37,7 @@
 #include <syslog.h>
 #include <pthread.h>
 
-#include "analyzer-threads.h"
+#include "worker-threads.h"
 #include "dragonfly-io.h"
 
 #define MAX_TEST6_MESSAGES 1000000

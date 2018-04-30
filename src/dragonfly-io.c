@@ -35,6 +35,7 @@
 #include "io-file.h"
 #include "io-tail.h"
 #include "io-pipe.h"
+#include "io-suricata.h"
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -55,6 +56,10 @@ DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
         {
                 return ipc_open(((const char *)uri + 6), spec);
         }
+        else if (strncmp("suricata://", uri, 11) == 0)
+        {
+                return ipc_open(((const char *)uri + 11), spec);
+        }
         return NULL;
 }
 
@@ -72,10 +77,13 @@ int dragonfly_io_write(DF_HANDLE *dh, char *buffer)
         {
                 return ipc_write_message(dh, buffer);
         }
-        else if ((dh->io_type == DF_IN_FILE_TYPE) ||
-                 (dh->io_type == DF_OUT_FILE_TYPE))
+        else if (dh->io_type == DF_OUT_FILE_TYPE)
         {
                 return file_write_line(dh, buffer);
+        }
+        else if (dh->io_type == DF_CMD_SURICATA)
+        {
+                return suricata_command(dh, buffer);
         }
         return -1;
 }
@@ -106,6 +114,35 @@ int dragonfly_io_read(DF_HANDLE *dh, char *buffer, int len)
         return -1;
 }
 
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+int dragonfly_io_read_lines(DF_HANDLE *dh, char **buffer, int len, int max)
+{
+        if (!dh)
+                return -1;
+
+        if ((dh->io_type == DF_SERVER_IPC_TYPE) ||
+            (dh->io_type == DF_CLIENT_IPC_TYPE))
+        {
+                return ipc_read_messages(dh, buffer, len, max);
+        }
+        /*
+         * TODO: add support for the types below
+         * 
+        else if (dh->io_type == DF_IN_TAIL_TYPE)
+        {
+                return tail_read_line(dh, buffer, len);
+        }
+        else if (dh->io_type == DF_IN_FILE_TYPE)
+        {
+                return file_read_line(dh, buffer, len);
+        }*/
+        return -1;
+}
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -147,7 +184,7 @@ void dragonfly_io_close(DF_HANDLE *dh)
         }
         free(dh->path);
         dh->path = NULL;
-        pthread_mutex_destroy(&(dh->io_mutex));
+        //pthread_mutex_destroy(&(dh->io_mutex));
         free(dh);
         dh = NULL;
 }

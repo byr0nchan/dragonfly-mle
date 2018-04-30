@@ -21,13 +21,19 @@
  *
  */
 
-#ifndef _SURICATA_COMMANDS_
-#define _SURICATA_COMMANDS_
+#ifndef __PARAM_H__
+#define __PARAM_H__
 
-#include <dragonfly-cmds.h>
+#define MAX_IO_VECTOR 64
+#define MAX_WORKER_THREADS 1
+#define MAX_ANALYZER_STREAMS 4
+#define MAX_INPUT_STREAMS (MAX_ANALYZER_STREAMS / 2)
+#define MAX_OUTPUT_STREAMS (MAX_ANALYZER_STREAMS / 2)
 
-int suricata_command_connect ();
-int suricata_add_hostbit(const char* time, const char* hostbit_name, const char*iplist, int expire);
+#define MAX_PIPE_LENGTH (MAX_IO_VECTOR * 4)
+#define MAX_DATA_BLOCKS (MAX_PIPE_LENGTH * ((MAX_ANALYZER_STREAMS + MAX_INPUT_STREAMS + MAX_OUTPUT_STREAMS) ) + MAX_IO_VECTOR)
+
+#define _MAX_BUFFER_SIZE_ 4096
+
 
 #endif
-

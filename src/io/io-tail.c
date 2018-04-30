@@ -111,7 +111,6 @@ DF_HANDLE *tail_open(const char *path, int spec)
         dh->fd = fd;
         dh->io_type = io_type;
         dh->path = strndup(file_path, PATH_MAX);
-        pthread_mutex_init(&(dh->io_mutex), NULL);
         syslog(LOG_INFO, "%s: %s", __FUNCTION__, path);
 
         return dh;
@@ -223,9 +222,9 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
 int tail_read_line(DF_HANDLE *dh, char *buffer, int max)
 {
         int n = 0;
-        pthread_mutex_lock(&(dh->io_mutex));
+        //pthread_mutex_lock(&(dh->io_mutex));
         n = tail_next_line(dh, buffer, max);
-        pthread_mutex_unlock(&(dh->io_mutex));
+        //pthread_mutex_unlock(&(dh->io_mutex));
         return n;
 }
 
@@ -239,10 +238,10 @@ void tail_close(DF_HANDLE *dh)
 #ifdef __DEBUG__
         fprintf(stderr, "%s: line %d\n", __FUNCTION__, __LINE__);
 #endif
-        pthread_mutex_lock(&(dh->io_mutex));
+        //pthread_mutex_lock(&(dh->io_mutex));
         close(dh->fd);
         dh->fd = -1;
-        pthread_mutex_unlock(&(dh->io_mutex));
+        //pthread_mutex_unlock(&(dh->io_mutex));
 }
 
 /*

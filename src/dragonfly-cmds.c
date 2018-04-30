@@ -45,42 +45,39 @@
 #include <signal.h>
 #include <limits.h>
 
-#include <suricata-cmds.h>
 #include <dragonfly-cmds.h>
 
 extern int g_verbose;
-extern const char *g_suricata_command_path;
+extern pthread_key_t g_threadContext;
+
+#ifdef COMMENT_OUT
 /*
  * ---------------------------------------------------------------------------------------
  *
  * ---------------------------------------------------------------------------------------
  */
-void dragonfly_iprep_init()
+int dragonfly_output(lua_State *L)
 {
-        if (g_suricata_command_path)
-        {
-        /*
-         * Establish connnection with the Suricata command channel, used for hostbits, if it exists
-         * 
-         * Caution: suri_command_connect() operates relative to chdir (g_run_dir) 
-         *	    so that it works if chroot() is in effect. See above.
-         */
+    if (lua_gettop(L) != 4)
+    {
+        return luaL_error(L, "expecting exactly 4 arguments");
+    }
+    const char *name = luaL_checkstring(L, 1);
+    const char *timestamp = luaL_checkstring(L, 2);
+    const char *event = luaL_checkstring(L, 3);
+    const char *message = luaL_checkstring(L, 4);
 
-                if (suricata_command_connect() < 0)
-                {
-#ifdef __DEBUG__
-                fprintf(stderr, "%s: unable to open %s\n", __FUNCTION__,g_suricata_command_path);
-#endif
-                syslog(LOG_ERR,  "%s: unable to open %s\n", __FUNCTION__,g_suricata_command_path);
-                        return;
-                }
-#ifdef __DEBUG__
-                fprintf(stderr, "%s: suricata_command socket detected\n", __FUNCTION__);
-#endif
-                syslog(LOG_ERR, "suricata_command socket detected");
-        }
+    
+    //OUTPUT_CONFIG *analyzer = (OUTPUT_CONFIG *)pthread_getspecific(g_threadContext);
+
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer) - 1,
+             "{\"timestamp\":\"%s\",\"event_type\":\"%s\",\"notice\":{\"category\":\"%s\",\"message\":\"%s\"}}\n",
+             timestamp, name, event, message);
+    dragonfly_io_write(analyzer->output, buffer);
+    return 0;
 }
-
+#endif
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -100,6 +97,7 @@ int dragonfly_date2epoch(lua_State *L)
         return 1;
 }
 
+#ifdef COMMENT_OUT
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -133,7 +131,7 @@ int dragonfly_iprep(lua_State *L)
         lua_pushnumber(L, status);
         return 1;
 }
-
+#endif
 /*
  * ---------------------------------------------------------------------------------------
  */

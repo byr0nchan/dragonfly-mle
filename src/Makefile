@@ -3,8 +3,8 @@
 # ------------------------------------------------------------------
 
 CC = gcc
-CFLAGS = -O2 -Wall -march=native -Werror
-INCLUDES = -I. -I./test -I./lib/lua-cjson -I./lib/lua-hiredis -I/usr/include/lua5.1/
+CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__ -pg
+INCLUDES = -I. -I./io -I./test -I./lib/pipe -I./lib/lua-cjson -I./lib/lua-hiredis -I/usr/include/lua5.1
 LIBS = -levent -lpthread -lluajit-5.1 -lhiredis -lm
 LFLAGS = -L.
 
@@ -14,18 +14,18 @@ DFLAGS =
 # -----------------------------------------------------------------
 # core files
 # -----------------------------------------------------------------
-SRCS = main.c analyzer-threads.c dragonfly-cmds.c suricata-cmds.c 
+SRCS = main.c worker-threads.c dragonfly-io.c dragonfly-cmds.c config.c
 
 # ------------------------------------------------------------------
 # I/O modules
 # ------------------------------------------------------------------
-SRCS1 = dragonfly-io.c io-file.c io-pipe.c io-tail.c
+SRCS1 = io/io-file.c io/io-pipe.c io/io-tail.c io/io-suricata.c
 
 # ------------------------------------------------------------------
 # third party open-source libraries
 # ------------------------------------------------------------------
 SRCS2 = lib/lua-hiredis/lua-hiredis.c lib/lua-cjson/lua-cjson.c \
-        lib/lua-cjson/strbuf.c lib/lua-cjson/fpconv.c 
+        lib/lua-cjson/strbuf.c lib/lua-cjson/fpconv.c lib/pipe/pipe.c
 
 # ------------------------------------------------------------------
 # unit test files
@@ -72,4 +72,4 @@ $(DEBUG_BIN): $(OBJS)
 .PHONY: test clean
 
 clean:
-	$(RM) test/*.o lib/lua-cjson/*.o lib/lua-hiredis/*.o *~ $(MAIN) $(DEBUG_BIN) $(TEST_BIN)
+	$(RM) *.o test/*.o io/*.o lib/lua-cjson/*.o lib/lua-hiredis/*.o *~ $(MAIN) $(DEBUG_BIN) $(TEST_BIN)
