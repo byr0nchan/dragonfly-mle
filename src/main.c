@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 	pthread_setname_np(pthread_self(), "dragonfly");
-	launch_lua_analyzers(g_dragonfly_root);
+	launch_lua_threads(g_dragonfly_root);
 
 	while (g_running)
 	{

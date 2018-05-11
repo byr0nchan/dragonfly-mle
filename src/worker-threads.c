@@ -564,6 +564,9 @@ static void *lua_analyzer_thread(void *ptr)
     lua_pushcfunction(L, response_event);
     lua_setglobal(L, "response_event");
 
+    lua_pushcfunction(L, dragonfly_http_get);
+    lua_setglobal(L, "http_get");
+
 #ifdef __DATE_FUNCTION__
     lua_pushcfunction(L, dragonfly_date2epoch);
     lua_setglobal(L, "date2epoch");
@@ -694,7 +697,6 @@ void initialize_configuration(const char *dragonfly_root)
         //fprintf(stderr, "DEBUG-> %s-%i  buffer(%p : %i)\n", __FUNCTION__, __LINE__, ptr, ptr->id);
         pipe_push(g_buffer_queue.pipe, ptr);
     }
-
     lua_State *L = luaL_newstate();
     /*
      * Load config.lua
@@ -715,7 +717,6 @@ void initialize_configuration(const char *dragonfly_root)
     {
         g_redis_port = atoi(lua_tostring(L, -1));
     }
-
     lua_getglobal(L, "redis_host");
     if (lua_isstring(L, -1))
     {
@@ -918,7 +919,7 @@ void startup_threads(const char *dragonfly_root)
  * ---------------------------------------------------------------------------------------
  */
 
-void launch_lua_analyzers(const char *root_directory)
+void launch_lua_threads(const char *root_directory)
 {
     g_verbose = isatty(1);
     startup_threads(root_directory);
