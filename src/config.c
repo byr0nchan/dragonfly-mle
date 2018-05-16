@@ -54,6 +54,26 @@
  *
  * ---------------------------------------------------------------------------------------
  */
+void unload_inputs_config(INPUT_CONFIG input_list[], int max)
+{
+    for (int i = 0; i < max; i++)
+    {
+        if (input_list[i].tag)
+        {
+            free(input_list[i].tag);
+            input_list[i].tag=NULL;
+            free(input_list[i].uri);
+            input_list[i].uri=NULL;
+            free(input_list[i].script);
+            input_list[i].script=NULL;
+        }
+    }
+}
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
 int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
 {
     int number_of_inputs = 0;
@@ -91,7 +111,7 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
             case 0:
             {
                 input_list[i].tag = strdup(lua_tostring(L, -1));
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                 fprintf(stderr, "  [INPUT] tag: %s, ", input_list[i].tag);
 #endif
             }
@@ -99,7 +119,7 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
             case 1:
             {
                 input_list[i].uri = strndup(lua_tostring(L, -1), PATH_MAX);
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                 fprintf(stderr, "uri: %s, ", input_list[i].uri);
 #endif
             }
@@ -111,7 +131,7 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
                 char script_path[PATH_MAX];
                 if (*path != '/')
                 {
-                    snprintf(script_path, PATH_MAX, "%s/%s", ANALYZERS_DIR, path);
+                    snprintf(script_path, PATH_MAX, "%s/%s", SCRIPTS_DIR, path);
                 }
                 else
                 {
@@ -121,7 +141,7 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
                 {
                     number_of_inputs++;
                     input_list[i].script = strndup(script_path, PATH_MAX);
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                     fprintf(stderr, "script: %s\n", input_list[i].script);
 #endif
                 }
@@ -139,6 +159,24 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
         lua_pop(L, 1);
     }
     return number_of_inputs;
+}
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+void unload_analyzers_config(ANALYZER_CONFIG analyzer_list[], int max)
+{
+    for (int i = 0; i < max; i++)
+    {
+        if (analyzer_list[i].tag)
+        {
+            free(analyzer_list[i].tag);
+            analyzer_list[i].tag=NULL;
+            free(analyzer_list[i].script);
+            analyzer_list[i].script=NULL;
+        }
+    }
 }
 /*
  * ---------------------------------------------------------------------------------------
@@ -182,8 +220,8 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
             case 0:
             {
                 analyzer_list[i - 1].tag = strdup(lua_tostring(L, -1));
-#ifdef __DEBUG__
-                fprintf(stderr, "  [ANALYZER %d : %d] tag: %s, ", i, max, analyzer_list[i - 1].tag);
+#ifdef __DEBUG3__
+                fprintf(stderr, "  [ANALYZER] tag: %s, ", analyzer_list[i - 1].tag);
 #endif
             }
             break;
@@ -194,7 +232,7 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
                 char lua_analyzer[PATH_MAX];
                 if (*script_path != '/')
                 {
-                    snprintf(lua_analyzer, PATH_MAX, "%s/%s", ANALYZERS_DIR, script_path);
+                    snprintf(lua_analyzer, PATH_MAX, "%s/%s", SCRIPTS_DIR, script_path);
                 }
                 else
                 {
@@ -203,9 +241,10 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
                 if ((lstat(lua_analyzer, &sb) >= 0) && S_ISREG(sb.st_mode))
                 {
                     analyzer_list[i - 1].script = strndup(lua_analyzer, PATH_MAX);
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                     fprintf(stderr, "script: %s\n", analyzer_list[i - 1].script);
 #endif
+                    number_of_analyzers++;
                 }
                 else
                 {
@@ -216,12 +255,29 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
             }
             break;
             }
-            number_of_analyzers++;
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
     }
     return number_of_analyzers;
+}
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+void unload_outputs_config(OUTPUT_CONFIG output_list[], int max)
+{
+    for (int i = 0; i < max; i++)
+    {
+        if (output_list[i].tag)
+        {
+            free(output_list[i].tag);
+            output_list[i].tag=NULL;
+            free(output_list[i].uri);
+            output_list[i].uri=NULL;
+        }
+    }
 }
 /*
  * ---------------------------------------------------------------------------------------
@@ -264,7 +320,7 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
             case 0:
             {
                 output_list[i].tag = strdup(lua_tostring(L, -1));
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                 fprintf(stderr, "  [OUTPUT] tag: %s, ", output_list[i].tag);
 #endif
             }
@@ -273,7 +329,7 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
             {
                 number_of_outputs++;
                 output_list[i].uri = strndup(lua_tostring(L, -1), PATH_MAX);
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                 fprintf(stderr, "uri: %s\n", output_list[i].uri);
 #endif
             }
@@ -284,16 +340,32 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
         lua_pop(L, 1);
     }
     return number_of_outputs;
-} /*
+} 
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+void unload_responder_config(RESPONDER_CONFIG responder_list[], int max)
+{
+    for (int i = 0; i < max; i++)
+    {
+        if (responder_list[i].tag)
+        {
+            free(responder_list[i].tag);
+            responder_list[i].tag=NULL;
+            free(responder_list[i].param);
+            responder_list[i].param=NULL;
+        }
+    }
+}
+/*
  * ---------------------------------------------------------------------------------------
  *
  * ---------------------------------------------------------------------------------------
  */
 int load_responder_config(lua_State *L, RESPONDER_CONFIG responder_list[], int max)
 {
-#ifdef __DEBUG__
-    fprintf(stderr, "%s:%i\n", __FUNCTION__, __LINE__);
-#endif
     int number_of_responders = 0;
     static struct
     {
@@ -328,7 +400,7 @@ int load_responder_config(lua_State *L, RESPONDER_CONFIG responder_list[], int m
             case 0:
             {
                 responder_list[i].tag = strdup(lua_tostring(L, -1));
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                 fprintf(stderr, "  [RESPONDER] tag: %s, ", responder_list[i].tag);
 #endif
             }
@@ -337,7 +409,7 @@ int load_responder_config(lua_State *L, RESPONDER_CONFIG responder_list[], int m
             {
                 number_of_responders++;
                 responder_list[i].param = strndup(lua_tostring(L, -1), PATH_MAX);
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                 fprintf(stderr, "param: %s\n", responder_list[i].param);
 #endif
             }

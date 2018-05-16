@@ -80,12 +80,6 @@ int dragonfly_io_write(DF_HANDLE *dh, char *buffer)
         {
                 return file_write_line(dh, buffer);
         }
-        /* moved to responder subdir
-        else if (dh->io_type == DF_CMD_SURICATA)
-        {
-                return suricata_command(dh, buffer);
-        }
-        */
         return -1;
 }
 

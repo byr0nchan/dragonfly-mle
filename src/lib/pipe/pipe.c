@@ -36,6 +36,15 @@ pipe_t *pipe_new(long queue_max)
  *   */
 void pipe_free(pipe_t *ptr)
 {
+	pthread_mutex_lock(&ptr->buf_lock);
+	/* wait while there is nothing in the buffer */
+	while (!TAILQ_EMPTY(&ptr->head))
+	{
+		pointer_t *p = TAILQ_FIRST(&ptr->head);
+		free(p);
+		TAILQ_REMOVE(&ptr->head, p, pointers);
+	}
+	pthread_mutex_unlock(&ptr->buf_lock);
 	pthread_mutex_destroy(&ptr->buf_lock);
 	pthread_cond_destroy(&ptr->notfull);
 	pthread_cond_destroy(&ptr->notempty);
@@ -62,9 +71,8 @@ void pipe_pushv(pipe_t *ptr, void **data, int n)
 	}
 
 	pthread_mutex_lock(&ptr->buf_lock);
-	while ((ptr->queue_length+n) >= ptr->queue_max)
+	while ((ptr->queue_length + n) >= ptr->queue_max)
 	{
-		//fprintf (stderr,"%s:%d\n",__FUNCTION__, __LINE__);
 		pthread_cond_wait(&ptr->notfull, &ptr->buf_lock);
 	}
 
@@ -93,7 +101,6 @@ void pipe_push(pipe_t *ptr, void *data)
 	pthread_mutex_lock(&ptr->buf_lock);
 	while (ptr->queue_length >= ptr->queue_max)
 	{
-		//fprintf (stderr,"%s:%d\n",__FUNCTION__, __LINE__);
 		pthread_cond_wait(&ptr->notfull, &ptr->buf_lock);
 	}
 	ptr->queue_length++;

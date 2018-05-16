@@ -64,20 +64,18 @@ int ipc_reopen(DF_HANDLE *dh)
         if (dh->io_type == DF_SERVER_IPC_TYPE)
         {
                 unlink(dh->path);
-                syslog(LOG_INFO, "Binding to %s\n", dh->path);
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                 fprintf(stderr, "%s: Binding to %s (DF_IN)\n", __FUNCTION__, dh->path);
 #endif
                 if ((s = bind(dh->fd, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
-                        syslog(LOG_ERR, "unable to bind socket: %s\n", strerror(errno));
+                        syslog(LOG_ERR, "unable to bind socket %s: %s\n", dh->path, strerror(errno));
                         return -1;
                 }
         }
         else if (dh->io_type == DF_CLIENT_IPC_TYPE)
         {
-                syslog(LOG_INFO, "Connecting to %s\n", dh->path);
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                 fprintf(stderr, "%s: Connecting to %s (DF_OUT)\n", __FUNCTION__, dh->path);
 #endif
                 if ((s = connect(dh->fd, (struct sockaddr *)&addr, sizeof(addr))) < 0)
@@ -86,9 +84,9 @@ int ipc_reopen(DF_HANDLE *dh)
                         return -1;
                 }
         }
-
+#ifdef __DEBUG3__
         syslog(LOG_INFO, "%s: %s", __FUNCTION__, addr.sun_path);
-
+#endif
         return 0;
 }
 #ifdef COMMENT_OUT
@@ -151,8 +149,8 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
         {
                 unlink(addr.sun_path);
                 io_type = DF_SERVER_IPC_TYPE;
-                syslog(LOG_INFO, "Binding to %s\n", addr.sun_path);
-#ifdef __DEBUG__
+                //syslog(LOG_INFO, "Binding to %s\n", addr.sun_path);
+#ifdef __DEBUG3__
                 fprintf(stderr, "%s: Binding to %s (DF_IN)\n", __FUNCTION__, addr.sun_path);
 #endif
                 if ((s = bind(socket_handle, (struct sockaddr *)&addr, sizeof(addr))) < 0)
@@ -166,8 +164,8 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
         else if ((spec & DF_OUT) == DF_OUT)
         {
                 io_type = DF_CLIENT_IPC_TYPE;
-                syslog(LOG_INFO, "Connecting to %s\n", addr.sun_path);
-#ifdef __DEBUG__
+                //syslog(LOG_INFO, "Connecting to %s\n", addr.sun_path);
+#ifdef __DEBUG3__
                 fprintf(stderr, "%s: Connecting to %s (DF_OUT)\n", __FUNCTION__, addr.sun_path);
 #endif
                 if ((s = connect(socket_handle, (struct sockaddr *)&addr, sizeof(addr))) < 0)
@@ -192,8 +190,9 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
         dh->fd = socket_handle;
         dh->io_type = io_type;
         dh->path = strndup(addr.sun_path, PATH_MAX);
-        syslog(LOG_INFO, "%s: %s", __FUNCTION__, dh->path);
-
+#ifdef __DEBUG3__
+        syslog(LOG_INFO, "%s: %s", __FUNCTION__, path);
+#endif
         return dh;
 }
 
@@ -245,18 +244,26 @@ int ipc_read_messages(DF_HANDLE *dh, char **buffer, int len, int max)
 int ipc_write_message(DF_HANDLE *dh, char *buffer)
 {
         int len = strnlen(buffer, DF_MAX_BUFFER_LEN);
-        if (len == DF_MAX_BUFFER_LEN)
-                return -1;
-
-        int n = send(dh->fd, buffer, len, 0);
-        if (n < 0)
+        if (len == 0 || len == DF_MAX_BUFFER_LEN)
         {
-                syslog(LOG_ERR, "write error: %s", strerror(errno));
-                if (n == 0 || n == EIO)
+                return -1;
+        }
+        int n = 0;
+        do
+        {
+                n = send(dh->fd, buffer, len, MSG_NOSIGNAL);
+                if (n < 0)
+                {
+                        syslog(LOG_ERR, "send error: %s", strerror(errno));
+                        perror("send");
+                        exit(EXIT_FAILURE);
+                }
+                else if (n == 0 || n == EIO)
                 {
                         ipc_reopen(dh);
                 }
-        }
+                else break;
+        } while (1);
         return n;
 }
 

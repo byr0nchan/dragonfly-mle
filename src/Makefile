@@ -3,7 +3,7 @@
 # ------------------------------------------------------------------
 
 CC = gcc
-CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__ -pg
+CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__ 
 INCLUDES = -I. -I./io -I./test -I./lib/pipe -I./resp -I./lib/lua-cjson -I./lib/lua-hiredis \
            -I/usr/include/lua5.1
 LIBS = -levent -lpthread -lluajit-5.1 -lhiredis -lm -lcurl
@@ -11,6 +11,7 @@ LFLAGS = -L.
 
 TFLAGS =
 DFLAGS =  
+
 
 # -----------------------------------------------------------------
 # core files
@@ -38,8 +39,7 @@ SRCS3 = lib/lua-hiredis/lua-hiredis.c lib/lua-cjson/lua-cjson.c \
 # unit test files
 # ------------------------------------------------------------------
 SRCS4 = test/test.c test/test0.c test/test1.c test/test2.c \
-		test/test3.c test/test4.c test/test5.c test/test6.c \
-		test/test7.c 
+		test/test3.c test/test4.c test/test5.c test/test6.c
 
 OBJS = $(SRCS:.c=.o) $(SRCS1:.c=.o) $(SRCS2:.c=.o) $(SRCS3:.c=.o) $(SRCS4:.c=.o)
 
@@ -61,6 +61,7 @@ test: TEST_FLAGS =-DRUN_UNIT_TESTS -D__DEBUG__
 test: $(TEST_BIN) 
 $(TEST_BIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(TFLAGS) $(INCLUDES) -o $(TEST_BIN) $(OBJS) $(LFLAGS) $(LIBS)
+#	valgrind --leak-check=yes ./$(TEST_BIN) -r /tmp
 
 # ------------------------------------------------------------------
 # debug build

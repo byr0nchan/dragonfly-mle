@@ -50,8 +50,8 @@ int g_drop_priv = 0;
 uint64_t g_msgSubscribed = 0;
 uint64_t g_msgReceived = 0;
 uint64_t g_running = 1;
-char *g_dragonfly_root = DRAGONFLY_DIR;
-char *g_suricata_command_path = NULL;
+char g_dragonfly_root[PATH_MAX];
+char g_suricata_command_path[PATH_MAX];
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -72,6 +72,9 @@ void print_usage()
 
 int main(int argc, char **argv)
 {
+	memset(g_dragonfly_root, 0, sizeof(g_dragonfly_root));
+	memset(g_suricata_command_path, 0, sizeof(g_suricata_command_path));
+
 	int option = 0;
 	while ((option = getopt(argc, argv, "cpr:s:v")) != -1)
 	{
@@ -81,7 +84,7 @@ int main(int argc, char **argv)
 		case 'c':
 			g_chroot = 1;
 			break;
-			
+
 			/* drop privilege */
 		case 'p':
 			g_drop_priv = 1;
@@ -89,12 +92,12 @@ int main(int argc, char **argv)
 
 			/* root directory */
 		case 'r':
-			g_dragonfly_root = strdup(optarg);
+			strncpy(g_dragonfly_root, optarg, PATH_MAX);
 			break;
 
 			/* suricata command socket */
 		case 's':
-			g_suricata_command_path = strdup(optarg);
+			strncpy(g_suricata_command_path, optarg, PATH_MAX);
 			break;
 
 			/* verbose */
@@ -108,6 +111,10 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (!*g_dragonfly_root)
+	{
+		strncpy(g_dragonfly_root, DRAGONFLY_DIR, PATH_MAX);
+	}
 	struct stat sb;
 	if ((lstat(g_dragonfly_root, &sb) < 0) || !S_ISDIR(sb.st_mode))
 	{
@@ -116,7 +123,6 @@ int main(int argc, char **argv)
 	}
 
 #ifdef RUN_UNIT_TESTS
-	fprintf(stderr,"Running unit tests\n");
 	run_self_tests(g_dragonfly_root);
 #endif
 
@@ -131,7 +137,7 @@ int main(int argc, char **argv)
 	}
 
 	closelog();
-	exit (EXIT_SUCCESS);
+	exit(EXIT_SUCCESS);
 }
 
 /*

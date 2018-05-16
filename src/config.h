@@ -27,6 +27,17 @@
 #include "dragonfly-io.h"
 #include "pipe.h"
 
+#define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
+#define RUN_DIR "run"
+#define LOG_DIR "log"
+#define SCRIPTS_DIR "scripts"
+#define CONFIG_FILE "config.lua"
+
+#define USER_NOBODY "nobody"
+#define DRAGONFLY_ROOT_DIR "/opt/dragonfly"
+#define DRAGONFLY_LOG_DIR "log"
+#define DRAGONFLY_LOG_NAME "dragonfly.log"
+
 typedef struct _INPUT_CONFIG_
 {
     char *tag;
@@ -59,8 +70,11 @@ typedef struct _RESPONDER_CONFIG_
 } RESPONDER_CONFIG;
 
 int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max);
+void unload_analyzers_config(ANALYZER_CONFIG analyzer_list[], int max);
 int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max);
+void unload_inputs_config(INPUT_CONFIG input_list[], int max);
 int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max);
+void unload_outputs_config(OUTPUT_CONFIG output_list[], int max);
 int load_responder_config(lua_State *L, RESPONDER_CONFIG responder_list[], int max);
-
+void unload_responder_config(RESPONDER_CONFIG responder_list[], int max);
 #endif

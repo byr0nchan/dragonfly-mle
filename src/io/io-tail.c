@@ -111,8 +111,9 @@ DF_HANDLE *tail_open(const char *path, int spec)
         dh->fd = fd;
         dh->io_type = io_type;
         dh->path = strndup(file_path, PATH_MAX);
+#ifdef __DEBUG3__
         syslog(LOG_INFO, "%s: %s", __FUNCTION__, path);
-
+#endif
         return dh;
 }
 
@@ -168,12 +169,12 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
                         {
                                 syslog(LOG_ERR, "unable to fstat: %s\n", strerror(errno));
                         }
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                         fprintf(stderr, "file size: %lld bytes\n", (long long)fdstat.st_size);
 #endif
                         if (fdstat.st_size < lastFileSize)
                         {
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                                 fprintf(stderr, "file was truncated\n");
 #endif
                                 lseek(dh->fd, 0, SEEK_SET);
@@ -192,7 +193,7 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
                                 if (fdstat.st_ino != fdstat2.st_ino)
                                 {
                                 // file was moved/renamed
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
                                         fprintf(stderr, "file moved or renamed\n");
 #endif
                                         close(dh->fd);
@@ -222,9 +223,7 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
 int tail_read_line(DF_HANDLE *dh, char *buffer, int max)
 {
         int n = 0;
-        //pthread_mutex_lock(&(dh->io_mutex));
         n = tail_next_line(dh, buffer, max);
-        //pthread_mutex_unlock(&(dh->io_mutex));
         return n;
 }
 
@@ -235,13 +234,11 @@ int tail_read_line(DF_HANDLE *dh, char *buffer, int max)
  */
 void tail_close(DF_HANDLE *dh)
 {
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
         fprintf(stderr, "%s: line %d\n", __FUNCTION__, __LINE__);
 #endif
-        //pthread_mutex_lock(&(dh->io_mutex));
         close(dh->fd);
         dh->fd = -1;
-        //pthread_mutex_unlock(&(dh->io_mutex));
 }
 
 /*

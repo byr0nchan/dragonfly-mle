@@ -65,11 +65,13 @@ static size_t http_write_data(void *ptr, size_t size, size_t nmemb, void *stream
 
 /*
  * ---------------------------------------------------------------------------------------
- *
+ * The following fragment of code was derived from examples
+ * at https://curl.haxx.se/libcurl/c/example.html
  * ---------------------------------------------------------------------------------------
  */
 static int http_get(const char *url, const char *filename)
 {
+        int status = 0;
         CURL *curl;
         CURLcode ret;
 
@@ -91,9 +93,9 @@ static int http_get(const char *url, const char *filename)
      * you.
      */
 #ifdef __DEBUG__
-                fprintf(stderr, "%s: verifying peer certificate\n",__FUNCTION__);
+                fprintf(stderr, "%s: verifying peer certificate\n", __FUNCTION__);
 #endif
-                      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
                 /*
      * If the site you're connecting to uses a different host name that what
@@ -102,7 +104,7 @@ static int http_get(const char *url, const char *filename)
      * this check, but this will make the connection less secure.
      */
 #ifdef __DEBUG__
-                fprintf(stderr, "%s: verifying host name\n",__FUNCTION__);
+                fprintf(stderr, "%s: verifying host name\n", __FUNCTION__);
 #endif
                 curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
@@ -115,7 +117,6 @@ static int http_get(const char *url, const char *filename)
                 FILE *pagefile = fopen(filename, "wb");
                 if (pagefile)
                 {
-
                         /* write the page body to this file handle */
                         curl_easy_setopt(curl, CURLOPT_WRITEDATA, pagefile);
 
@@ -123,9 +124,12 @@ static int http_get(const char *url, const char *filename)
                         ret = curl_easy_perform(curl);
                         /* Check for errors */
                         if (ret != CURLE_OK)
+                        {
                                 //TODO: return error string to LUA
                                 fprintf(stderr, "curl_easy_perform() failed: %s\n",
                                         curl_easy_strerror(ret));
+                                status = -1;
+                        }
 
                         /* close the header file */
                         fclose(pagefile);
@@ -137,7 +141,7 @@ static int http_get(const char *url, const char *filename)
 
         curl_global_cleanup();
 
-        return 0;
+        return status;
 }
 /*
  * ---------------------------------------------------------------------------------------
@@ -154,8 +158,7 @@ int dragonfly_http_get(lua_State *L)
         const char *filename = luaL_checkstring(L, 1);
         if (http_get(url, filename) < 0)
         {
-                // do error
-
+                return luaL_error(L, "%s: failed", __FUNCTION__);
         }
         return 0;
 }

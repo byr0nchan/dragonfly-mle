@@ -46,28 +46,41 @@ extern int g_running;
  *
  * ---------------------------------------------------------------------------------------
  */
-void run_self_tests (const char *dragonfly_root)
+void run_self_tests(const char *dragonfly_root)
 {
-	fprintf(stderr,"RUNNING unit tests...\n");
+	fprintf(stderr, "Running unit tests\n");
+
+	char scripts_dir[PATH_MAX];
+	snprintf(scripts_dir, sizeof(scripts_dir), "%s/scripts", dragonfly_root);
+	mkdir(scripts_dir, 0755);
+
+	char run_dir[PATH_MAX];
+	snprintf(run_dir, sizeof(run_dir), "%s/run", dragonfly_root);
+	mkdir(run_dir, 0755);
+
+	char log_dir[PATH_MAX];
+	snprintf(log_dir, sizeof(log_dir), "%s/log", dragonfly_root);
+	mkdir(log_dir, 0755);
+
+	SELF_TEST0(dragonfly_root);
+	sleep(2);
 	/*
-	SELF_TEST0 (dragonfly_root);
-	sleep (2);
 	SELF_TEST1(dragonfly_root);
-	sleep (2);
+	sleep(2);
+	
 	SELF_TEST2(dragonfly_root);
-	sleep (2);
-	*/
+	sleep(2);
 	SELF_TEST3(dragonfly_root);
-	/*
-	sleep (2);
+	sleep(2);
 	SELF_TEST4(dragonfly_root);
-	sleep (2);
+	sleep(2);
 	SELF_TEST5(dragonfly_root);
 	sleep (2);
 	SELF_TEST6(dragonfly_root);
-	sleep (2);	
-	SELF_TEST7(dragonfly_root);
-*/
+	*/
+	rmdir(scripts_dir);
+	rmdir(log_dir);
+	rmdir(run_dir);
 	exit(EXIT_SUCCESS);
 }
 /*

@@ -21,7 +21,6 @@
  *
  */
 
-
 #ifdef RUN_UNIT_TESTS
 
 #define _GNU_SOURCE
@@ -37,9 +36,60 @@
 #include <signal.h>
 #include <syslog.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include "worker-threads.h"
 #include "dragonfly-io.h"
+
+#include "test.h"
+
+static const char *CONFIG_LUA =
+	"inputs = {\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"}\n"
+	"\n"
+	"analyzers = {\n"
+	"    { tag=\"test\", script=\"analyzer.lua\" },\n"
+	"}\n"
+	"\n"
+	"outputs = {\n"
+	"    { tag=\"log\", uri=\"file://test.log\"},\n"
+	"}\n"
+	"\n";
+
+static const char *INPUT_LUA =
+	"function setup()\n"
+	"end\n"
+	"\n"
+	"function loop(msg)\n"
+	"   analyze_event (\"test\", msg)\n"
+	"end\n";
+
+const char *ANALYZER_LUA =
+	"function setup()\n"
+	"  conn = assert(hiredis.connect())\n"
+	"end\n"
+	"function loop (msg)\n"
+	"  assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
+	"end\n\n";
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+static void write_file(const char *file_path, const char *content)
+{
+	fprintf(stderr, "generated %s\n", file_path);
+	FILE *fp = fopen(file_path, "w+");
+	if (!fp)
+	{
+		perror(__FUNCTION__);
+		return;
+	}
+	fputs(content, fp);
+	fclose(fp);
+}
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -48,97 +98,68 @@
  */
 void SELF_TEST2(const char *dragonfly_root)
 {
-
 #define MAX_TEST2_MESSAGES 1000000
-	fprintf(stderr, "\n\n%s:connecting to redis, sending ping, then disconnecting\n", __FUNCTION__);
+	const char *analyzer_path = "./scripts/analyzer.lua";
+	const char *input_path = "./scripts/input.lua";
+	const char *config_path = "./scripts/config.lua";
+
+	fprintf(stderr, "\n\n%s: connecting to redis, sending %u ping messages, then disconnecting\n", __FUNCTION__, MAX_TEST2_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
-
-	const char *test_dir = "/tmp";
-	const char *analyzer_dir = "/tmp/analyzers";
-	const char *script_path = "/tmp/analyzers/test2.lua";
-	const char *config_path = "/tmp/analyzers/config.lua";
-	mkdir (analyzer_dir, 0755);
-	// generate a config.lua file 
-	const char* config = "analyzers = {   "
-									 "{ name=\"test2\","
-									   "input=\"ipc:///tmp/test2.ipc\", "
-									   "script=\"test2.lua\", "
-									   "output=\"file:///tmp/test2.log\"}"
-								     "   }\n";
-	FILE *fp = fopen(config_path,"w+");
-	if (!fp)
-	{
-		perror (__FUNCTION__);
-		return;
-	}
-	fprintf (stderr, "config.lua:\n\n%s\n\n", config);
-	fputs(config, fp);
-	fclose (fp);
-	
-	// generate a test.lua analyzer
-	const char* script = "local conn \n"
-						 "local count = 0 \n"
-					     "function setup()\n"
-						 "  conn = assert(hiredis.connect())\n"
-						 "  print(\"setup()\")\n"
-						 "end\n"
-					     "function loop (msg)\n"
-						 "  assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
-						 "  count = count + 1\n"
-						 "  local now = os.time()\n"
-      					 "  local dtg = os.date(\"!%Y-%m-%dT%TZ\",now)\n"
-						 "  event = \"event \"..tostring(count)\n"
-						 "  assert(conn:command(\"SET\", count, dtg,\"5\"))\n"
-						 "  output_event (dtg, event, msg)\n"
-						 "end\n\n";
-	fp = fopen(script_path,"w+");
-	if (!fp)
-	{
-		perror (__FUNCTION__);
-		return;
-	}
-	fprintf (stderr, "test2.lua:\n\n%s\n\n", script);
-	fputs(script, fp);
-	fclose (fp);
-
+	/*
+	 * generate lua scripts
+	 */
+	assert(chdir(dragonfly_root) == 0);
+	char *path = get_current_dir_name();
+	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
+	free (path);
+	write_file(config_path, CONFIG_LUA);
+	write_file(input_path, INPUT_LUA);
+	write_file(analyzer_path, ANALYZER_LUA);
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 	pthread_setname_np(pthread_self(), "dragonfly");
-    startup_threads(test_dir);
+	startup_threads(dragonfly_root);
 
-	sleep (1);
-	DF_HANDLE *pump = dragonfly_io_open("ipc:///tmp/test2.ipc", DF_OUT);
+	sleep(1);
+	DF_HANDLE *pump = dragonfly_io_open("ipc://input.ipc", DF_OUT);
 	if (!pump)
 	{
-		fprintf (stderr, "%s: dragonfly_io_open() failed.\n", __FUNCTION__);
-		return;
+		fprintf(stderr, "%s: dragonfly_io_open() failed.\n", __FUNCTION__);
+		abort();
 	}
 
 	sleep(1);
-	int mod = 0;
-	for (int i=0; i< MAX_TEST2_MESSAGES; i++)
+
+	long mod = 0;
+	for (long i = 0; i < MAX_TEST2_MESSAGES; i++)
 	{
-		char msg [128];
-		for (int j=0; j<(sizeof(msg)-1);j++)
+		char msg[128];
+		for (int j = 0; j < (sizeof(msg) - 1); j++)
 		{
-			msg [j]='A'+(mod%48);
+			msg[j] = 'A' + (mod % 48);
 			mod++;
 		}
-		msg [sizeof(msg)-1]='\0';
-    	dragonfly_io_write (pump, msg);
+		if ( i && (i % 100000) == 0 )
+		{
+				fprintf(stderr, "\t%lu redis pings\n", i);
+		}
+		msg[sizeof(msg) - 1] = '\0';
+		dragonfly_io_write(pump, msg);
 	}
-    sleep (1);
+	sleep(1);
+
 	shutdown_threads();
-	dragonfly_io_close (pump);
+
+	dragonfly_io_close(pump);
 
 	closelog();
-    remove (config_path);
-    remove (script_path);
-	remove ("/tmp/test2.log");
-	rmdir (analyzer_dir);
-	fprintf(stderr,"\n");
 
+	fprintf(stderr, "\nCleaning up files\n");
+	remove(config_path);
+	remove(input_path);
+	remove(analyzer_path);
+	fprintf(stderr, "-------------------------------------------------------\n\n");
 }
 
 /*

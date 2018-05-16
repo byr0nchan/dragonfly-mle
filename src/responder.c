@@ -58,9 +58,6 @@ static RESPONDER g_responder[MAX_RESPONDER_COMMANDS];
  */
 void responder_initialize()
 {
-#ifdef __DEBUG__
-    fprintf(stderr, "%s:%i\n", __FUNCTION__,__LINE__);
-#endif
     memset(g_responder, 0, sizeof(g_responder));
     /*
      * Support for Suricata's command channel
@@ -79,7 +76,7 @@ int responder_setup(const char *tag, const char *parameter)
 {
     for (int i = 0; i < MAX_RESPONDER_COMMANDS; i++)
     {
-        if (strcasecmp(tag, g_responder[i].tag) == 0)
+        if (g_responder[i].tag && strcasecmp(tag, g_responder[i].tag) == 0)
         {
             return g_responder[i].pf_initialize(parameter);
         }
@@ -96,7 +93,7 @@ int responder_event(const char *tag, const char *command, char *response, int ma
 {
     for (int i = 0; i < MAX_RESPONDER_COMMANDS; i++)
     {
-        if (strcasecmp(tag, g_responder[i].tag) == 0)
+        if (g_responder[i].tag && strcasecmp(tag, g_responder[i].tag) == 0)
         {
             return g_responder[i].pf_command(command, response, max_response);
         }

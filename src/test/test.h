@@ -25,13 +25,13 @@
 #define _SELF_TEST_H_
 
 void run_self_tests(const char *dragonfly_root);
-void SELF_TEST0 (const char *dragonfly_root);
-void SELF_TEST1 (const char *dragonfly_root);
-void SELF_TEST2 (const char *dragonfly_root);
-void SELF_TEST3 (const char *dragonfly_root);
-void SELF_TEST4 (const char *dragonfly_root);
-void SELF_TEST5 (const char *dragonfly_root);
-void SELF_TEST6 (const char *dragonfly_root);
-void SELF_TEST7 (const char *dragonfly_root);
+void SELF_TEST0(const char *dragonfly_root);
+void SELF_TEST1(const char *dragonfly_root);
+void SELF_TEST2(const char *dragonfly_root);
+void SELF_TEST3(const char *dragonfly_root);
+void SELF_TEST4(const char *dragonfly_root);
+void SELF_TEST5(const char *dragonfly_root);
+void SELF_TEST6(const char *dragonfly_root);
+void SELF_TEST7(const char *dragonfly_root);
 
 #endif

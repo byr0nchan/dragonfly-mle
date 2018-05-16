@@ -36,12 +36,100 @@
 #include <signal.h>
 #include <syslog.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include "worker-threads.h"
 #include "dragonfly-io.h"
 
-#define MAX_TEST6_MESSAGES 1000000
+#include "test.h"
 
+#define MAX_TEST6_MESSAGES 100000
+
+static const char *CONFIG_LUA =
+	"inputs = {\n"
+	"   { tag=\"input\", uri=\"tail://input.txt\", script=\"input.lua\"}\n"
+	"}\n"
+	"\n"
+	"analyzers = {\n"
+	"    { tag=\"test\", script=\"analyzer.lua\" },\n"
+	"}\n"
+	"\n"
+	"outputs = {\n"
+	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
+	"}\n"
+	"\n";
+
+static const char *INPUT_LUA =
+	"function setup()\n"
+	"end\n"
+	"\n"
+	"function loop(msg)\n"
+	"   analyze_event (\"test\", msg)\n"
+	"end\n";
+
+static const char *ANALYZER_LUA =
+	"function setup()\n"
+	"end\n"
+	"function loop (msg)\n"
+	"   output_event (\"log\", msg)\n"
+	"end\n\n";
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+static void write_file(const char *file_path, const char *content)
+{
+	fprintf(stderr, "generated %s\n", file_path);
+	FILE *fp = fopen(file_path, "w+");
+	if (!fp)
+	{
+		perror(__FUNCTION__);
+		return;
+	}
+	fputs(content, fp);
+	fclose(fp);
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+static void *writer_thread(void *ptr)
+{
+	pthread_setname_np(pthread_self(), "writer");
+	DF_HANDLE *pump = dragonfly_io_open("file://input.txt", DF_OUT);
+	if (!pump)
+	{
+		fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
+		perror(__FUNCTION__);
+		abort();
+	}
+	/*
+	 * write messages walking the alphabet
+	 */
+	int mod = 0;
+	for (unsigned long i = 0; i < MAX_TEST6_MESSAGES; i++)
+	{
+		char msg[128];
+		for (int j = 0; j < (sizeof(msg) - 1); j++)
+		{
+			msg[j] = 'A' + (mod % 48);
+			mod++;
+		}
+		msg[sizeof(msg) - 1] = '\0';
+		msg[sizeof(msg) - 2] = '\n';
+		if (dragonfly_io_write(pump, msg) < 0)
+		{
+			fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
+			perror(__FUNCTION__);
+			abort();
+		}
+	}
+	dragonfly_io_close(pump);
+	return (void *)NULL;
+}
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -49,116 +137,77 @@
  */
 void SELF_TEST6(const char *dragonfly_root)
 {
+	const char *analyzer_path = "./scripts/analyzer.lua";
+	const char *input_path = "./scripts/input.lua";
+	const char *config_path = "./scripts/config.lua";
 
-	fprintf(stderr, "\n\n%s:(pumping %d messages from tailed file to input pipe)\n", __FUNCTION__, MAX_TEST6_MESSAGES);
+	fprintf(stderr, "\n\n%s: tailing %d messages from input to output.ipc\n", __FUNCTION__, MAX_TEST6_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
+	/*
+	 * generate lua scripts
+	 */
+	assert(chdir(dragonfly_root) == 0);
+	char *path = get_current_dir_name();
+	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
+	free (path);
+	write_file(config_path, CONFIG_LUA);
+	write_file(input_path, INPUT_LUA);
+	write_file(analyzer_path, ANALYZER_LUA);
 
-	const char *test_dir = "/tmp";
-	const char *analyzer_dir = "/tmp/analyzers";
-	const char *script_path = "/tmp/analyzers/test6.lua";
-	const char *config_path = "/tmp/analyzers/config.lua";
-
-	mkdir(analyzer_dir, 0755);
-	// generate a config.lua file
-	const char *config = "analyzers = {   "
-						 "{ name=\"test6\","
-						 "input=\"tail:///tmp/test6in.txt\", "
-						 "script=\"test6.lua\", "
-						 "output=\"ipc:///tmp/test6out.ipc\"}"
-						 "   }\n";
-	FILE *fp = fopen(config_path, "w+");
-	if (!fp)
-	{
-		perror(__FUNCTION__);
-		return;
-	}
-	fprintf(stderr, "config.lua:\n\n%s\n\n", config);
-	fputs(config, fp);
-	fclose(fp);
-
-	// generate a test.lua analyzer
-	const char *script = "local count = 0 \n"
-						 "function setup()\n"
-						 " count = 0\n"
-						 "end\n"
-						 "function loop (msg)\n"
-						 " count = count + 1\n"
-						 " local now = os.time()\n"
-						 " local dtg = os.date(\"!%Y-%m-%dT%TZ\",now)\n"
-						 " event = \"event \"..tostring(count)\n"
-						 " log_event (dtg, event, msg)\n"
-						 "end\n\n";
-	fp = fopen(script_path, "w+");
-	if (!fp)
-	{
-		perror(__FUNCTION__);
-		return;
-	}
-	fprintf(stderr, "test6.lua:\n\n%s\n\n", script);
-	fputs(script, fp);
-	fclose(fp);
-
-	DF_HANDLE *pump_in = dragonfly_io_open("ipc:///tmp/test6out.ipc", DF_IN);
-	if (!pump_in)
-	{
-		fprintf(stderr, "%s: dragonfly_io_open() failed.\n", __FUNCTION__);
-		return;
-	}
-
-	// start the service
-	// create a pipe for sending messages
-	// pump messages through the pipe
-	// shutdown the service
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 	pthread_setname_np(pthread_self(), "dragonfly");
-	startup_threads(test_dir);
-	sleep(2);
-	DF_HANDLE *pump_out = dragonfly_io_open("file:///tmp/test6in.txt", DF_OUT);
-	if (!pump_out)
+
+	DF_HANDLE *input = dragonfly_io_open("ipc://output.ipc", DF_IN);
+	if (!input)
 	{
-		fprintf(stderr, "%s: dragonfly_io_open() failed.\n", __FUNCTION__);
-		return;
+		perror(__FUNCTION__);
+		abort();
+	}
+
+	startup_threads(dragonfly_root);
+	sleep(1);
+
+	pthread_t tinfo;
+	if (pthread_create(&tinfo, NULL, writer_thread, (void *)NULL) != 0)
+	{
+		perror(__FUNCTION__);
+		abort();
 	}
 
 	/*
-         * write messages walking the alphabet
-         */
+	 * write messages walking the alphabet
+	 */
+#define QUANTUM 1000
+	char buffer[4096];
 	clock_t last_time = clock();
-	int mod = 0;
-	for (long i = 0; i < MAX_TEST6_MESSAGES; i++)
+	for (unsigned long i = 0; i < MAX_TEST6_MESSAGES; i++)
 	{
-		char msg_out[64];
-		char msg_in[64];
-		for (int j = 0; j < sizeof(msg_out); j++)
+		int len = dragonfly_io_read(input, buffer, (sizeof(buffer) - 1));
+		if (len < 0)
 		{
-			msg_out[j] = 'A' + (mod % 48);
-			mod++;
+			perror(__FUNCTION__);
+			abort();
 		}
-		msg_out[sizeof(msg_out) - 2] = '\n';
-		msg_out[sizeof(msg_out) - 1] = '\0';
-		//fprintf (stderr, "%s", msg_out);
-		dragonfly_io_write(pump_out, msg_out);
-		dragonfly_io_read(pump_in, msg_in, sizeof(msg_in));
-		if ((i>0)&&(i % 100000) == 0)
+		if ((i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();
-			double elapsed_time = ((double)( mark_time - last_time))/CLOCKS_PER_SEC; // in seconds
-			double ops_per_sec = 100000 / elapsed_time;
-			fprintf(stderr, "%6.2f/sec\n", ops_per_sec);
+			double elapsed_time = ((double)(mark_time - last_time)) / CLOCKS_PER_SEC; // in seconds
+			double ops_per_sec = QUANTUM / elapsed_time;
+			fprintf(stderr, "\t%6.2f/sec\n", ops_per_sec);
 			last_time = mark_time;
 		}
 	}
-	dragonfly_io_close(pump_in);
-	dragonfly_io_close(pump_out);
+	pthread_join(tinfo, NULL);
+	dragonfly_io_close(input);
 	shutdown_threads();
-
 	closelog();
+
+	fprintf(stderr, "Cleaning up files\n");
 	remove(config_path);
-	remove(script_path);
-	remove("/tmp/test6.log");
-	rmdir(analyzer_dir);
-	fprintf(stderr, "\n");
+	remove(input_path);
+	remove(analyzer_path);
+	fprintf(stderr, "-------------------------------------------------------\n\n");
 }
 
 /*
