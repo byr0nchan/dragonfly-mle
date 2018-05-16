@@ -98,7 +98,7 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST2(const char *dragonfly_root)
 {
-#define MAX_TEST2_MESSAGES 1000000
+#define MAX_TEST2_MESSAGES 10000
 	const char *analyzer_path = "./scripts/analyzer.lua";
 	const char *input_path = "./scripts/input.lua";
 	const char *config_path = "./scripts/config.lua";
@@ -150,9 +150,7 @@ void SELF_TEST2(const char *dragonfly_root)
 	sleep(1);
 
 	shutdown_threads();
-
 	dragonfly_io_close(pump);
-
 	closelog();
 
 	fprintf(stderr, "\nCleaning up files\n");

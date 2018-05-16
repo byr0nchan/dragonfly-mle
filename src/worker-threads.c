@@ -74,7 +74,7 @@ static int g_num_output_threads = 0;
 
 static pthread_barrier_t g_barrier;
 
-char *g_redis_host = "127.0.0.1";
+char *g_redis_host = NULL;
 int g_redis_port = 6379;
 
 #define ROTATE_MESSAGE "+rotate+"
@@ -655,7 +655,7 @@ void initialize_configuration(const char *dragonfly_root)
         }
         syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
     }
-    char *path = getcwd(g_root_dir, PATH_MAX);
+    char *path = get_current_dir_name();
     syslog(LOG_INFO, "chdir: %s\n", path);
     free(path);
 
@@ -724,6 +724,11 @@ void initialize_configuration(const char *dragonfly_root)
     {
         g_redis_host = strdup(lua_tostring(L, -1));
     }
+    else
+    {
+         g_redis_host = strdup("127.0.0.1");
+    }
+
     if ((g_num_analyzer_threads = load_analyzers_config(L, g_analyzer_list, MAX_ANALYZER_STREAMS)) <= 0)
     {
         syslog(LOG_ERR, "load_analyzer_config failed");
@@ -756,7 +761,7 @@ void initialize_configuration(const char *dragonfly_root)
 void shutdown_threads()
 {
     g_running = 0;
-    // send an interrup signal to all of the threadsjoin()
+
     int n = 0;
     while (g_thread[n])
     {
@@ -771,7 +776,6 @@ void shutdown_threads()
 #ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_input_list[i].script);
 #endif
-        //pthread_join(g_input_list[i].thread, NULL);
         pipe_free(g_input_list[i].pipe);
     }
     for (int i = 0; g_analyzer_list[i].script != NULL; i++)
@@ -779,7 +783,6 @@ void shutdown_threads()
 #ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_analyzer_list[i].script);
 #endif
-        //pthread_join(g_analyzer_list[i].thread, NULL);
         pipe_free(g_analyzer_list[i].pipe);
     }
     for (int i = 0; g_output_list[i].uri != NULL; i++)
@@ -787,7 +790,6 @@ void shutdown_threads()
 #ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_analyzer_list[i].script);
 #endif
-        //pthread_join(g_output_list[i].thread, NULL);
         pipe_free(g_output_list[i].pipe);
     }
     destroy_configuration();
@@ -797,7 +799,6 @@ void shutdown_threads()
     g_num_analyzer_threads = 0;
     g_num_input_threads = 0;
     g_num_output_threads = 0;
-
     free(g_redis_host);
 }
 

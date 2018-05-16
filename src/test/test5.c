@@ -100,7 +100,7 @@ static void write_file(const char *file_path, const char *content)
  *
  * ---------------------------------------------------------------------------------------
  */
-static void *reader_thread(void *ptr)
+static void *consumer_thread(void *ptr)
 {
 	pthread_setname_np(pthread_self(), "reader");
 	DF_HANDLE *pump_in = dragonfly_io_open("ipc://output.ipc", DF_IN);
@@ -114,6 +114,7 @@ static void *reader_thread(void *ptr)
 	/*
 	 * write messages walking the alphabet
 	 */
+	fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
 	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
 	{
 		char msg_in[128];
@@ -122,6 +123,7 @@ static void *reader_thread(void *ptr)
 		{
 			break;
 		}
+		
 #define QUANTUM 100000
 		if ((i > 0) && (i % QUANTUM) == 0)
 		{
@@ -163,7 +165,7 @@ void SELF_TEST5(const char *dragonfly_root)
 	pthread_setname_np(pthread_self(), "dragonfly");
 
 	pthread_t tinfo;
-	if (pthread_create(&tinfo, NULL, reader_thread, (void *)NULL) != 0)
+	if (pthread_create(&tinfo, NULL, consumer_thread, (void *)NULL) != 0)
 	{
 		perror(__FUNCTION__);
 		abort();
@@ -183,6 +185,7 @@ void SELF_TEST5(const char *dragonfly_root)
 	/*
 	 * write messages walking the alphabet
 	 */
+	fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
 	int mod = 0;
 	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
 	{

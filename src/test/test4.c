@@ -102,7 +102,7 @@ void SELF_TEST4(const char *dragonfly_root)
 	const char *input_path = "./scripts/input.lua";
 	const char *config_path = "./scripts/config.lua";
 
-	fprintf(stderr, "\n\n%s: pumping %d messages to test.log\n", __FUNCTION__, MAX_TEST4_MESSAGES);
+	fprintf(stderr, "\n\n%s: rotate file while pumping %d messages to test.log\n", __FUNCTION__, MAX_TEST4_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
@@ -154,14 +154,11 @@ void SELF_TEST4(const char *dragonfly_root)
 		}
 	}
 	dragonfly_io_close(pump);
-	sleep(1);
+	sleep (1);
 	shutdown_threads();
 	closelog();
 
 	fprintf(stderr, "Cleaning up files\n");
-	remove(config_path);
-	remove(input_path);
-	remove(analyzer_path);	fprintf(stderr, "Cleaning up files\n");
 	remove(config_path);
 	remove(input_path);
 	remove(analyzer_path);

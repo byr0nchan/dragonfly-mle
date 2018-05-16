@@ -39,7 +39,8 @@ SRCS3 = lib/lua-hiredis/lua-hiredis.c lib/lua-cjson/lua-cjson.c \
 # unit test files
 # ------------------------------------------------------------------
 SRCS4 = test/test.c test/test0.c test/test1.c test/test2.c \
-		test/test3.c test/test4.c test/test5.c test/test6.c
+		test/test3.c test/test4.c test/test5.c test/test6.c \
+		test/test7.c
 
 OBJS = $(SRCS:.c=.o) $(SRCS1:.c=.o) $(SRCS2:.c=.o) $(SRCS3:.c=.o) $(SRCS4:.c=.o)
 

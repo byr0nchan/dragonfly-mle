@@ -36,6 +36,7 @@ pipe_t *pipe_new(long queue_max)
  *   */
 void pipe_free(pipe_t *ptr)
 {
+	if (!ptr) return;
 	pthread_mutex_lock(&ptr->buf_lock);
 	/* wait while there is nothing in the buffer */
 	while (!TAILQ_EMPTY(&ptr->head))

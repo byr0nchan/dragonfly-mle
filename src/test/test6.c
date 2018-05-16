@@ -43,7 +43,7 @@
 
 #include "test.h"
 
-#define MAX_TEST6_MESSAGES 100000
+#define MAX_TEST6_MESSAGES 10000
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -199,8 +199,8 @@ void SELF_TEST6(const char *dragonfly_root)
 		}
 	}
 	pthread_join(tinfo, NULL);
-	dragonfly_io_close(input);
 	shutdown_threads();
+	dragonfly_io_close(input);
 	closelog();
 
 	fprintf(stderr, "Cleaning up files\n");
