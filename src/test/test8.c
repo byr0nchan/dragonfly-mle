@@ -30,24 +30,18 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <syslog.h>
 #include <pthread.h>
-
 #include <assert.h>
 
 #include "worker-threads.h"
 #include "dragonfly-io.h"
 
 #include "test.h"
-
-extern int g_running;
-
-#define MAX_TEST5_MESSAGES 1000000
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -59,7 +53,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
+	"    { tag=\"log\", uri=\"file://test.log\"},\n"
 	"}\n"
 	"\n";
 
@@ -72,11 +66,40 @@ static const char *INPUT_LUA =
 	"end\n";
 
 static const char *ANALYZER_LUA =
+	"filename = \"sslblacklist.csv\"\n"
+	"function split(s, delimiter)\n"
+    "		result = {}\n"
+    "		for match in (s..delimiter):gmatch(\"(.-)\"..delimiter) do\n"
+    "   		 table.insert(result, match)\n"
+    "		end\n"
+    "		return result\n"
+	"end\n"
 	"function setup()\n"
+	"   conn = assert(hiredis.connect())\n"
+	"   assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
+	"   http_get (\"https://sslbl.abuse.ch/blacklist/sslblacklist.csv\",filename)\n"
+	"	local file, err = io.open(filename, \'rb\')\n"
+	"	if file then\n"
+	"		while true do\n"
+	"			line = file:read()\n"
+	"	   		if line and not line:find(\"^#\") then\n"
+	"				-- print(line)\n"
+	"				tokens = split (line,\',\')\n"
+	"				if tokens[1] then\n"
+	"					assert(conn:command(\"HMSET\",tokens[2],\"dtg\", tokens[1], \"cat\", tokens[3]) == hiredis.status.OK)\n"
+	"					print (tokens[1], tokens[2], tokens[3])\n"
+	"				end\n"
+	"			end\n"
+	"		end\n"
+	"	else\n"
+	"		error(filename .. \": \" .. err)\n"
+	"	end\n"
 	"end\n"
 	"function loop (msg)\n"
-	"   output_event (\"log\", msg)\n"
-	"end\n\n";
+    "\n"
+	"\n"
+	"end\n";
+
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -100,54 +123,14 @@ static void write_file(const char *file_path, const char *content)
  *
  * ---------------------------------------------------------------------------------------
  */
-static void *consumer_thread(void *ptr)
-{
-	pthread_setname_np(pthread_self(), "reader");
-	DF_HANDLE *pump_in = dragonfly_io_open("ipc://output.ipc", DF_IN);
-	if (!pump_in)
-	{
-		fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
-		perror(__FUNCTION__);
-		abort();
-	}
-	clock_t last_time = clock();
-	/*
-	 * write messages walking the alphabet
-	 */
-	//fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
-	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
-	{
-		char msg_in[128];
-		msg_in[sizeof(msg_in) - 1] = '\0';
-		if (dragonfly_io_read(pump_in, msg_in, sizeof(msg_in)) <= 0)
-		{
-			break;
-		}
-		
-#define QUANTUM 100000
-		if ((i > 0) && (i % QUANTUM) == 0)
-		{
-			clock_t mark_time = clock();
-			double elapsed_time = ((double)(mark_time - last_time)) / CLOCKS_PER_SEC; // in seconds
-			double ops_per_sec = QUANTUM / elapsed_time;
-			fprintf(stderr, "\t%6.2f/sec\n", ops_per_sec);
-			last_time = mark_time;
-		}
-	}
-	dragonfly_io_close(pump_in);
-	return (void *)NULL;
-}
-/*
- * ---------------------------------------------------------------------------------------
- */
-void SELF_TEST5(const char *dragonfly_root)
+void SELF_TEST8(const char *dragonfly_root)
 {
 	const char *analyzer_path = "./scripts/analyzer.lua";
 	const char *input_path = "./scripts/input.lua";
 	const char *config_path = "./scripts/config.lua";
 
-	fprintf(stderr, "\n\n%s: pumping %d messages from output pipe to input pipe\n",
-			__FUNCTION__, MAX_TEST5_MESSAGES);
+	fprintf(stderr, "\n\n%s: http_get followed by sending a message\n",
+			__FUNCTION__);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
@@ -155,7 +138,7 @@ void SELF_TEST5(const char *dragonfly_root)
 	assert(chdir(dragonfly_root) == 0);
 	char *path = get_current_dir_name();
 	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
@@ -163,54 +146,34 @@ void SELF_TEST5(const char *dragonfly_root)
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 	pthread_setname_np(pthread_self(), "dragonfly");
-
-	pthread_t tinfo;
-	if (pthread_create(&tinfo, NULL, consumer_thread, (void *)NULL) != 0)
-	{
-		perror(__FUNCTION__);
-		abort();
-	}
-
 	startup_threads(dragonfly_root);
 
 	sleep(1);
-
-	DF_HANDLE *pump_out = dragonfly_io_open("ipc://input.ipc", DF_OUT);
-	if (!pump_out)
+	DF_HANDLE *pump = dragonfly_io_open("ipc://input.ipc", DF_OUT);
+	if (!pump)
 	{
-		perror(__FUNCTION__);
+		fprintf(stderr, "%s: dragonfly_io_open() failed.\n", __FUNCTION__);
 		abort();
 	}
 
-	/*
-	 * write messages walking the alphabet
-	 */
-	//fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
+	sleep(1);
 	int mod = 0;
-	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
+	char msg [256];
+	for (int j = 0; j < (sizeof(msg) - 1); j++)
 	{
-		char msg_out[128];
-		for (int j = 0; j < (sizeof(msg_out) - 2); j++)
-		{
-			msg_out[j] = 'A' + (mod % 48);
-			mod++;
-		}
-		msg_out[127] = '\0';
-
-		int len = strnlen(msg_out, sizeof(msg_out));
-		if (len <= 0)
-		{
-			fprintf(stderr, "%s:  length error!!!", __FUNCTION__);
-			abort();
-		}
-		dragonfly_io_write(pump_out, msg_out);
+		msg[j] = 'A' + (mod % 48);
+		mod++;
 	}
-	pthread_join(tinfo, NULL);
-	shutdown_threads();
-	dragonfly_io_close(pump_out);
+	msg[sizeof(msg) - 1] = '\0';
+	dragonfly_io_write(pump, msg);
 
+	sleep(1);
+
+	shutdown_threads();
+	dragonfly_io_close(pump);
 	closelog();
-	fprintf(stderr, "Cleaning up files\n");
+
+	fprintf(stderr, "\nCleaning up files\n");
 	remove(config_path);
 	remove(input_path);
 	remove(analyzer_path);

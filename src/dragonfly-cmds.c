@@ -74,7 +74,9 @@ static int http_get(const char *url, const char *filename)
         int status = 0;
         CURL *curl;
         CURLcode ret;
-
+#ifdef __DEBUG3__
+        fprintf(stderr, "%s:%i\n", __FUNCTION__, __LINE__);
+#endif
         curl_global_init(CURL_GLOBAL_DEFAULT);
 
         curl = curl_easy_init();
@@ -95,9 +97,9 @@ static int http_get(const char *url, const char *filename)
 #ifdef __DEBUG__
                 fprintf(stderr, "%s: verifying peer certificate\n", __FUNCTION__);
 #endif
-                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
-                /*
+    /*
      * If the site you're connecting to uses a different host name that what
      * they have mentioned in their server certificate's commonName (or
      * subjectAltName) fields, libcurl will refuse to connect. You can skip
@@ -110,10 +112,10 @@ static int http_get(const char *url, const char *filename)
 
                 /* send all data to this function  */
                 curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, http_write_data);
-
+#ifdef __DEBUG3__
                 /* Switch on full protocol/debug output while testing */
                 curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-
+#endif
                 FILE *pagefile = fopen(filename, "wb");
                 if (pagefile)
                 {
@@ -134,7 +136,6 @@ static int http_get(const char *url, const char *filename)
                         /* close the header file */
                         fclose(pagefile);
                 }
-
                 /* always cleanup */
                 curl_easy_cleanup(curl);
         }
@@ -155,7 +156,7 @@ int dragonfly_http_get(lua_State *L)
                 return luaL_error(L, "expecting exactly 2 arguments");
         }
         const char *url = luaL_checkstring(L, 1);
-        const char *filename = luaL_checkstring(L, 1);
+        const char *filename = luaL_checkstring(L, 2);
         if (http_get(url, filename) < 0)
         {
                 return luaL_error(L, "%s: failed", __FUNCTION__);

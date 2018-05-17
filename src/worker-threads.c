@@ -294,6 +294,13 @@ static void *lua_flywheel_thread(void *ptr)
  */
 void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
 {
+
+    /*
+     * Disable I/O in the loop() entry point.
+     */
+    lua_pushnil(L);
+    lua_setglobal(L, "io");
+
     while (g_running)
     {
         DATA_BUFFER *ptr[MAX_IO_VECTOR];
@@ -378,6 +385,11 @@ static void *lua_input_thread(void *ptr)
         lua_pop(L, 1);
         signal_shutdown(-1);
     }
+    /*
+     * Disable I/O in the loop() entry point.
+     */
+    lua_pushnil(L);
+    lua_setglobal(L, "io");
 
     pthread_barrier_wait(&g_barrier);
     syslog(LOG_NOTICE, "Running %s\n", lua_script);
@@ -462,6 +474,12 @@ static void *lua_output_thread(void *ptr)
  */
 void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
 {
+    /*
+     * Disable I/O in the loop() entry point.
+     */
+    lua_pushnil(L);
+    lua_setglobal(L, "io");
+
     while (g_running)
     {
         DATA_BUFFER *ptr[MAX_IO_VECTOR];
@@ -726,7 +744,7 @@ void initialize_configuration(const char *dragonfly_root)
     }
     else
     {
-         g_redis_host = strdup("127.0.0.1");
+        g_redis_host = strdup("127.0.0.1");
     }
 
     if ((g_num_analyzer_threads = load_analyzers_config(L, g_analyzer_list, MAX_ANALYZER_STREAMS)) <= 0)

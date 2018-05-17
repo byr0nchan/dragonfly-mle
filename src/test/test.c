@@ -61,7 +61,7 @@ void run_self_tests(const char *dragonfly_root)
 	char log_dir[PATH_MAX];
 	snprintf(log_dir, sizeof(log_dir), "%s/log", dragonfly_root);
 	mkdir(log_dir, 0755);
-/*
+
 	SELF_TEST0(dragonfly_root);
 	sleep(2);
 
@@ -71,20 +71,22 @@ void run_self_tests(const char *dragonfly_root)
 	SELF_TEST2(dragonfly_root);
 	sleep(2);
 
-	SELF_TEST3(dragonfly_root);
+	//SELF_TEST3(dragonfly_root);
 	sleep(2);
 
-
-	SELF_TEST4(dragonfly_root);
+	//SELF_TEST4(dragonfly_root);
 	sleep(2);
 
-	SELF_TEST5(dragonfly_root);
-	sleep(2);
-*/
-	SELF_TEST6(dragonfly_root);
+	//SELF_TEST5(dragonfly_root);
 	sleep(2);
 
-	SELF_TEST7(dragonfly_root);
+	//SELF_TEST6(dragonfly_root);
+	sleep(2);
+
+	//SELF_TEST7(dragonfly_root);
+	sleep(2);
+
+	SELF_TEST8(dragonfly_root);
 	sleep(2);
 
 	rmdir(scripts_dir);
