@@ -24,7 +24,7 @@ analyzers = {
    -- ---------------------------------------------------------
    { tag="tls", script="example-tls.lua" },
    { tag="dns", script="example-dns.lua" },
-   -- { tag="flow", script="example-flow.lua" },
+   { tag="flow", script="example-flow.lua" },
    -- { tag="ja3", script="example-ja3.lua" },
 
    -- ---------------------------------------------------------
@@ -42,5 +42,6 @@ outputs = {
     { tag="log", uri="file://dragonfly.log"},
     { tag="tls", uri="file://tls-alerts.log"},
     { tag="dns", uri="file://dns-alerts.log"},
+    { tag="flow", uri="file://flow-alerts.log"},
 }
 

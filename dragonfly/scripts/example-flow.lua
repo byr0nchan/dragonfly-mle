@@ -1,9 +1,9 @@
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
-filename = "baddomains.txt"
-file_url = "https://zeustracker.abuse.ch/blocklist.php?download=baddomains"
-redis_key = "bad.domain"
+filename = "badip.txt"
+file_url = "https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist"
+redis_key = "bad.ip"
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
@@ -30,7 +30,7 @@ function setup()
 			end
 		end
 	end
-	print (">>>> Bad DNS analyzer running")
+	print (">>>>Bad IP analyzer running")
 end
 
 -- ----------------------------------------------
@@ -38,12 +38,12 @@ end
 -- ----------------------------------------------
 function loop(msg)
 	local eve = cjson.decode(msg)
-	if eve and eve.dns.type == 'answer' and eve.dns.rrtype == 'A' and eve.dns.rrname then
-		if conn:command("SISMEMBER",redis_key,eve.dns.rrname) == 1 then
-			message = "rrname: "..eve.dns.rrname..", rdata: "..eve.dns.rdata
-			-- print ("dns-alert: "..message)
-			output_event ("dns", message)
+		if eve and eve.event_type == "flow" and conn:command("SISMEMBER",redis_key, eve.dest_ip) == 1 then
+			message = "time: "..eve.timestamp..", dest_ip: "..eve.dest_ip..", flow_id: "..eve.flow_id..", alerted: "..tostring(eve.flow.alerted)
+			print ("flow-alert: "..message)
+			output_event ("flow", message)
+			--ip_reputation (eve.timestamp, "blacklist", eve.dns.rdata, 300)
 		end
-	end
+
 end
 
