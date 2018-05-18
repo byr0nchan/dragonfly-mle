@@ -49,6 +49,18 @@
 static int tail_open_nonblock_file(const char *path)
 {
         int fd = open(path, O_RDONLY);
+        if (fd < 0)
+        {
+
+                syslog(LOG_ERR, "unable to open: %s - %s\n", path, strerror(errno));
+                return -1;
+        }
+        if (lseek(fd, 0, SEEK_END) < 0)
+        {
+                close(fd);
+                syslog(LOG_ERR, "unable to seek: %s - %s\n", path, strerror(errno));
+                return -1;
+        }
         int fd_flags = fcntl(fd, F_GETFL);
         if (fd_flags < 0)
         {
@@ -75,7 +87,7 @@ DF_HANDLE *tail_open(const char *path, int spec)
         int fd = -1;
         int io_type;
         char file_path[PATH_MAX];
-        
+
         if (*path == '/')
         {
                 strncpy(file_path, path, PATH_MAX);
@@ -192,7 +204,7 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
                                 stat(dh->path, &fdstat2);
                                 if (fdstat.st_ino != fdstat2.st_ino)
                                 {
-                                // file was moved/renamed
+                                        // file was moved/renamed
 #ifdef __DEBUG3__
                                         fprintf(stderr, "file moved or renamed\n");
 #endif

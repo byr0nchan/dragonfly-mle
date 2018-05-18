@@ -61,7 +61,7 @@ char g_suricata_command_path[PATH_MAX];
 
 void print_usage()
 {
-	printf("Usage: dragonfly [ap] -c -p -v -r <root dir>\n");
+	printf("Usage: dragonfly -c -p -v -r <root dir>\n");
 }
 
 /*
@@ -93,11 +93,6 @@ int main(int argc, char **argv)
 			/* root directory */
 		case 'r':
 			strncpy(g_dragonfly_root, optarg, PATH_MAX);
-			break;
-
-			/* suricata command socket */
-		case 's':
-			strncpy(g_suricata_command_path, optarg, PATH_MAX);
 			break;
 
 			/* verbose */

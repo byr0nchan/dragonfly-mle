@@ -1,10 +1,10 @@
 -- ----------------------------------------------
 -- Flow analysis using Random Forest ML
 -- ----------------------------------------------
+--
 local open = io.open
-
 local mlpath = "analyzers/flow-suricata.ml"
-
+local mlmodule = "./lib/redis-ml.so"
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
@@ -12,11 +12,16 @@ function setup()
     conn = hiredis.connect()
     assert(conn:command("PING") == hiredis.status.PONG)
     
-    print ("Reading model......")
+    -- load the redis ML module
+    print ("Load Redis ML module......")
+    reply = conn:command_line("MODULE LOAD "..mlmodule)
+
+    print ("Reading random forest model......")
     local file = open(mlpath, "rb") -- r read mode 
     local model = file:read ("*a")
     file:close()
 
+    -- load the random forest tree
     reply = conn:command_line("ML.FOREST.ADD "..model)
     print ("Loaded ML model: ", reply)
 

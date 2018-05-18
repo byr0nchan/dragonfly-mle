@@ -47,7 +47,6 @@ typedef struct _DF_HANDLE_
     int fd;
     int io_type;
     char *path;
-   // pthread_mutex_t io_mutex;
 } DF_HANDLE;
 
 DF_HANDLE *dragonfly_io_open(const char *path, int spec);

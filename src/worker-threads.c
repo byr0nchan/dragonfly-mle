@@ -90,6 +90,7 @@ typedef struct _BUFFER_QUEUE_
 {
     DATA_BUFFER list[MAX_DATA_BLOCKS];
     pipe_t *pipe;
+    int number;
 } BUFFER_QUEUE;
 
 static BUFFER_QUEUE g_buffer_queue;
@@ -110,6 +111,19 @@ void signal_abort(int signum)
 {
     g_running = 0;
     syslog(LOG_ERR, "%s", __FUNCTION__);
+}
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+static void lua_disable_io(lua_State *L)
+{
+    /*
+     * Disable I/O in the loop() entry point. Reduces security risk.
+     */
+    lua_pushnil(L);
+    lua_setglobal(L, "io");
 }
 
 /*
@@ -162,7 +176,6 @@ int analyze_event(lua_State *L)
     {
         if (strcasecmp(name, g_analyzer_list[i].tag) == 0)
         {
-            //fprintf(stderr,"%s: strlen = %lu\n",__FUNCTION__, len);
             DATA_BUFFER *ptr = pipe_pop(g_buffer_queue.pipe);
             memcpy(ptr->buffer, message, len);
             ptr->len = len;
@@ -171,7 +184,7 @@ int analyze_event(lua_State *L)
             return 0;
         }
     }
-    return -1;
+    return 0;
 }
 
 /*
@@ -191,7 +204,7 @@ int output_event(lua_State *L)
 
     for (int i = 0; g_output_list[i].tag != NULL; i++)
     {
-        if (g_output_list[i].tag && strcasecmp(name, g_output_list[i].tag) == 0)
+        if (strcasecmp(name, g_output_list[i].tag) == 0)
         {
             DATA_BUFFER *ptr = pipe_pop(g_buffer_queue.pipe);
             ptr->len = len;
@@ -201,7 +214,7 @@ int output_event(lua_State *L)
             return 0;
         }
     }
-    return -1;
+    return 0;
 }
 
 /*
@@ -250,11 +263,8 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
                 pipe_push(g_buffer_queue.pipe, (void *)ptr);
                 return;
             }
-            if (ptr[i]->len)
-            {
-                ptr[i]->buffer[ptr[i]->len] = '\0';
-                pipe_push(flywheel->pipe, (void *)ptr[i]);
-            }
+            ptr[i]->buffer[ptr[i]->len] = '\0';
+            pipe_push(flywheel->pipe, (void *)ptr[i]);
         }
     }
 }
@@ -294,12 +304,10 @@ static void *lua_flywheel_thread(void *ptr)
  */
 void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
 {
-
     /*
      * Disable I/O in the loop() entry point.
      */
-    lua_pushnil(L);
-    lua_setglobal(L, "io");
+    lua_disable_io(L);
 
     while (g_running)
     {
@@ -307,12 +315,12 @@ void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
         int n = pipe_popv(input->pipe, (void **)ptr, MAX_IO_VECTOR);
         for (int i = 0; i < n; i++)
         {
-            ptr[i]->buffer[ptr[i]->len] = '\0';
             lua_getglobal(L, "loop");
-            lua_pushstring(L, ptr[i]->buffer);
-            if (lua_pcall(L, 1, 0, 0))
+            lua_pushlstring(L, ptr[i]->buffer, ptr[i]->len);
+            int error = lua_pcall(L, 1, 0, 0);
+            if (error)
             {
-                syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
+                syslog(LOG_ERR, "%s: lua_pcall error (%d): - %s", __FUNCTION__, error, lua_tostring(L, -1));
                 lua_pop(L, 1);
                 exit(EXIT_FAILURE);
             }
@@ -364,7 +372,33 @@ static void *lua_input_thread(void *ptr)
         pthread_exit(NULL);
     }
 
-    if (luaL_loadfile(L, lua_script) || lua_pcall(L, 0, 0, 0))
+    /*
+     * Load the lua-cjson library:
+     * 
+     *  https://github.com/mpx/lua-cjson
+     * 
+     */
+    luaopen_cjson(L);
+    luaopen_cjson_safe(L);
+    if (g_verbose)
+    {
+        syslog(LOG_INFO, "Loaded lua-cjson library");
+        fprintf(stderr, "%s: loaded lua-cjson library\n", __FUNCTION__);
+    }
+    /*
+     * Load the lua-hiredis library:
+     * 
+     *  https://github.com/agladysh/lua-hiredis.git
+     * 
+     */
+    luaopen_hiredis(L, g_redis_host, g_redis_port);
+    if (g_verbose)
+    {
+        syslog(LOG_INFO, "loaded lua-hiredis library");
+        fprintf(stderr, "%s: loaded lua-hiredis library\n", __FUNCTION__);
+    }
+
+    if (luaL_loadfile(L, lua_script) || (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN))
     {
         syslog(LOG_ERR, "luaL_loadfile %s failed - %s", lua_script, lua_tostring(L, -1));
         lua_pop(L, 1);
@@ -385,11 +419,6 @@ static void *lua_input_thread(void *ptr)
         lua_pop(L, 1);
         signal_shutdown(-1);
     }
-    /*
-     * Disable I/O in the loop() entry point.
-     */
-    lua_pushnil(L);
-    lua_setglobal(L, "io");
 
     pthread_barrier_wait(&g_barrier);
     syslog(LOG_NOTICE, "Running %s\n", lua_script);
@@ -412,10 +441,12 @@ static void *lua_input_thread(void *ptr)
 
 void lua_output_loop(OUTPUT_CONFIG *output)
 {
+
     while (g_running)
     {
         DATA_BUFFER *ptr[MAX_IO_VECTOR];
         int n = pipe_popv(output->pipe, (void **)ptr, MAX_IO_VECTOR);
+
         for (int i = 0; i < n; i++)
         {
             if (strcasecmp(ptr[i]->buffer, ROTATE_MESSAGE) == 0)
@@ -477,8 +508,7 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
     /*
      * Disable I/O in the loop() entry point.
      */
-    lua_pushnil(L);
-    lua_setglobal(L, "io");
+    lua_disable_io(L);
 
     while (g_running)
     {
@@ -486,9 +516,8 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
         int n = pipe_popv(analyzer->pipe, (void **)ptr, MAX_IO_VECTOR);
         for (int i = 0; i < n; i++)
         {
-            ptr[i]->buffer[ptr[i]->len] = '\0';
             lua_getglobal(L, "loop");
-            lua_pushstring(L, ptr[i]->buffer);
+            lua_pushlstring(L, ptr[i]->buffer, ptr[i]->len);
             if (lua_pcall(L, 1, 0, 0))
             {
                 syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
@@ -541,7 +570,7 @@ static void *lua_analyzer_thread(void *ptr)
         pthread_exit(NULL);
     }
 
-    if (luaL_loadfile(L, lua_script) || lua_pcall(L, 0, 0, 0))
+    if (luaL_loadfile(L, lua_script) || (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN))
     {
         syslog(LOG_ERR, "luaL_loadfile %s failed - %s", lua_script, lua_tostring(L, -1));
         lua_pop(L, 1);
@@ -558,10 +587,11 @@ static void *lua_analyzer_thread(void *ptr)
      */
     luaopen_cjson(L);
     luaopen_cjson_safe(L);
-#ifdef __DEBUG3__
-    syslog(LOG_INFO, "Loaded lua-cjson library");
-    fprintf(stderr, "%s: loaded lua-cjson library\n", __FUNCTION__);
-#endif
+    if (g_verbose)
+    {
+        syslog(LOG_INFO, "Loaded lua-cjson library");
+        fprintf(stderr, "%s: loaded lua-cjson library\n", __FUNCTION__);
+    }
     /*
      * Load the lua-hiredis library:
      * 
@@ -569,10 +599,11 @@ static void *lua_analyzer_thread(void *ptr)
      * 
      */
     luaopen_hiredis(L, g_redis_host, g_redis_port);
-#ifdef __DEBUG3__
-    syslog(LOG_INFO, "loaded lua-hiredis library");
-    fprintf(stderr, "%s: loaded lua-hiredis library\n", __FUNCTION__);
-#endif
+    if (g_verbose)
+    {
+        syslog(LOG_INFO, "loaded lua-hiredis library");
+        fprintf(stderr, "%s: loaded lua-hiredis library\n", __FUNCTION__);
+    }
     /* register functions */
     lua_pushcfunction(L, output_event);
     lua_setglobal(L, "output_event");

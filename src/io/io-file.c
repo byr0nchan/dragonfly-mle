@@ -80,11 +80,7 @@ DF_HANDLE *file_open(const char *path, int spec)
                         syslog(LOG_ERR, "unable to open: %s - %s\n", path, strerror(errno));
                         return NULL;
                 }
-                if (setvbuf(fp, NULL, _IOLBF, 4096) < 0)
-                {
-                        syslog(LOG_ERR, "unable to line mode: %s - %s\n", path, strerror(errno));
-                        return NULL;  
-                }
+                setlinebuf (fp);
         }
         else
         {
@@ -139,6 +135,7 @@ int file_rotate(DF_HANDLE *dh)
                 if ((fp = fopen(dh->path, "a")) != NULL)
                 {
                         dh->fp = fp;
+                        setlinebuf (fp);
                         status = 0;
                 }
         }
@@ -174,8 +171,8 @@ int file_write_line(DF_HANDLE *dh, char *buffer)
         int n = fputs(buffer, dh->fp);
         if (n < 0)
         {
-#ifdef __DEBUG3__
-                fprintf (stderr,"%s: line %d: %s",__FUNCTION__, __LINE__, strerror(errno));
+#ifdef __DEBUG__
+                fprintf (stderr,"%s: line %d: %s\n",__FUNCTION__, __LINE__, strerror(errno));
 #endif
                 syslog(LOG_ERR, "write error: %s", strerror(errno));
                 if (n == 0 || n == EIO)
@@ -183,6 +180,7 @@ int file_write_line(DF_HANDLE *dh, char *buffer)
                         //file_reopen(dh);
                 }
         }
+        fputs("\n", dh->fp);
         return n;
 }
 

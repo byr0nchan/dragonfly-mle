@@ -1,3 +1,8 @@
+
+-- ----------------------------------------------
+-- TLS look up -- https://notary.icsi.berkeley.edu/
+-- ----------------------------------------------
+
 local socket = require("socket")
 
 -- ----------------------------------------------
@@ -5,8 +10,14 @@ local socket = require("socket")
 -- ----------------------------------------------
 function setup()
 		conn = hiredis.connect()
-		assert(conn:command("PING") == hiredis.status.PONG)
-		print ("TLS analyzer running")
+		if not conn then
+			error ("Error connecting to the redis server")
+		end
+		if conn:command("PING") ~= hiredis.status.PONG then
+			error ("Unable to ping redis")
+		else
+			print (">>>>TLS analyzer running")
+		end
 end
 
 -- ----------------------------------------------
@@ -25,20 +36,21 @@ function loop(msg)
 			reply =  conn:command ("sismember","tls:valid",sha1) 
 			if reply then
 				local a_record = sha1..".notary.icsi.berkeley.edu"
-				print(">> TLS CHECKING: "..a_record)
+				---print(">> TLS CHECKING: "..a_record)
 				local ip, status = socket.dns.toip(a_record) 
 				if not ip then
-					print(">> TLS LOOKUP ERROR: "..status)
-					message = "Questionable TLS domain/IP: "..sha1.."\n\tissuer: "..eve.tls.issuerdn.."\n\tsubject: "..eve.tls.subject
-                    log_event (eve.timestamp, "tls", message)
+					
+					message = "time: "..eve.timestamp..", message: TLS lookup error - "..status
+					-- print (message)
+					output_event ("log", message)
 				else
 					-- print(">> TLS RESP: "..ip)
 					if ip == "127.0.0.2" or ip == "127.0.0.1" then
 						conn:command("sadd","tls:valid",sha1) 
 						conn:command ("expire", key,'300')
 					else
-						message = "Invalid TLS: "..sha1.."\n\tissuer: "..eve.tls.issuerdn.."\n\tsubject: "..eve.tls.subject
-                        log_event (eve.timestamp, "TLS", message)
+						message = "time:"..eve.timestamp..", dest ip:"..eve.dest_ip.."fingerprint:"..sha1..", issuer: "..eve.tls.issuerdn..", subject:"..eve.tls.subject.."sni:"..eve.tls.sni
+						output_event ("tls", message)
 					end
 				end
 			end
