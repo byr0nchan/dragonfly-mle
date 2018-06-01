@@ -457,7 +457,7 @@ void lua_output_loop(OUTPUT_CONFIG *output)
             {
                 if (dragonfly_io_write(output->output, ptr[i]->buffer) < 0)
                 {
-                    fprintf(stderr, "DEBUG-> %s output error\n", __FUNCTION__);
+                    fprintf(stderr, "%s: output error\n", __FUNCTION__);
                     pipe_push(g_buffer_queue.pipe, (void *)ptr);
                     return;
                 }
@@ -810,11 +810,12 @@ void initialize_configuration(const char *dragonfly_root)
 void shutdown_threads()
 {
     g_running = 0;
+    sleep (1);
 
     int n = 0;
     while (g_thread[n])
     {
-#ifdef __DEBUG3__
+#ifdef __DEBUG__
         fprintf(stderr, "%s:%i %i\n", __FUNCTION__, __LINE__, n);
 #endif
         pthread_join(g_thread[n++], NULL);
@@ -822,21 +823,21 @@ void shutdown_threads()
 
     for (int i = 0; g_input_list[i].uri != NULL; i++)
     {
-#ifdef __DEBUG3__
+#ifdef __DEBUG__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_input_list[i].script);
 #endif
         pipe_free(g_input_list[i].pipe);
     }
     for (int i = 0; g_analyzer_list[i].script != NULL; i++)
     {
-#ifdef __DEBUG3__
+#ifdef __DEBUG__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_analyzer_list[i].script);
 #endif
         pipe_free(g_analyzer_list[i].pipe);
     }
-    for (int i = 0; g_output_list[i].uri != NULL; i++)
+    for (int i = 0; g_output_list[i].pipe != NULL; i++)
     {
-#ifdef __DEBUG3__
+#ifdef __DEBUG__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_analyzer_list[i].script);
 #endif
         pipe_free(g_output_list[i].pipe);
@@ -953,23 +954,25 @@ void startup_threads(const char *dragonfly_root)
     /*
      * Wait until all analyzer threads are ready
      */
-    sleep(2);
 #ifdef __DEBUG3__
     fprintf(stderr, "%s:%i pthread_barrier_wait()\n", __FUNCTION__, __LINE__);
 #endif
     pthread_barrier_wait(&g_barrier);
 
+    //if (getuid() == 0)
     if (g_drop_priv)
     {
-        struct passwd *pwd = getpwnam(USER_NOBODY);
-        if (getuid() == 0)
+        fprintf(stderr, "\nDropping privileges\n");
+        if (setgid(getgid()) < 0)
         {
-            /* process is running as root, drop privileges */
-            if (pwd && setuid(pwd->pw_uid) != 0)
-            {
-                syslog(LOG_ERR, "setuid: unable to drop user privileges: %s", strerror(errno));
-                signal_shutdown(-1);
-            }
+                syslog(LOG_ERR, "setgid: %s", strerror(errno));
+        }
+        struct passwd *pwd = getpwnam(USER_NOBODY);
+        if (pwd && setuid(pwd->pw_uid) != 0)
+        //if (setuid(getuid()) <0)
+        {
+            syslog(LOG_ERR, "setuid(%s): %s", USER_NOBODY, strerror(errno));
+            signal_shutdown(-1);
         }
         syslog(LOG_INFO, "dropped privileges: %s\n", USER_NOBODY);
     }

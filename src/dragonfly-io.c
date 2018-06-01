@@ -35,6 +35,7 @@
 #include "io-file.h"
 #include "io-tail.h"
 #include "io-pipe.h"
+#include "io-kafka.h"
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -54,6 +55,10 @@ DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
         else if (strncmp("ipc://", uri, 6) == 0)
         {
                 return ipc_open(((const char *)uri + 6), spec);
+        }
+        else if (strncmp("kafka://", uri, 8) == 0)
+        {
+                return kafka_open(((const char *)uri + 8), spec);
         }
         else if (strncmp("suricata://", uri, 11) == 0)
         {
@@ -80,6 +85,10 @@ int dragonfly_io_write(DF_HANDLE *dh, char *buffer)
         {
                 return file_write_line(dh, buffer);
         }
+       else if (dh->io_type == DF_OUT_KAFKA_TYPE)
+        {
+                return kafka_write_message(dh, buffer);
+        }
         return -1;
 }
 
@@ -105,6 +114,10 @@ int dragonfly_io_read(DF_HANDLE *dh, char *buffer, int len)
         else if (dh->io_type == DF_IN_FILE_TYPE)
         {
                 return file_read_line(dh, buffer, len);
+        }
+        else if (dh->io_type == DF_IN_KAFKA_TYPE)
+        {
+                return kafka_read_message(dh, buffer, len);
         }
         return -1;
 }

@@ -180,7 +180,6 @@ void SELF_TEST7(const char *dragonfly_root)
 	}
 
 	startup_threads(dragonfly_root);
-	sleep(1);
 
 	pthread_t tinfo;
 	if (pthread_create(&tinfo, NULL, producer_thread, (void *)NULL) != 0)
@@ -190,7 +189,7 @@ void SELF_TEST7(const char *dragonfly_root)
 	}
 
 	/*
-	 * write messages walking the alphabet
+	 * read messages
 	 */
 #define QUANTUM 1000
 	char buffer[4096];
@@ -212,6 +211,7 @@ void SELF_TEST7(const char *dragonfly_root)
 			last_time = mark_time;
 		}
 	}
+
 	pthread_join(tinfo, NULL);
 	shutdown_threads();
 	dragonfly_io_close(input);

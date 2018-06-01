@@ -18,10 +18,8 @@
 pipe_t *pipe_new(long queue_max)
 {
 	pipe_t *ptr = (pipe_t *)malloc(sizeof(pipe_t));
-	if (ptr == NULL)
-	{
-		return (NULL);
-	}
+	if (!ptr) return NULL;
+
 	memset(ptr, 0, sizeof(pipe_t));
 	TAILQ_INIT(&ptr->head);
 	ptr->queue_max = queue_max;
@@ -50,6 +48,7 @@ void pipe_free(pipe_t *ptr)
 	pthread_cond_destroy(&ptr->notfull);
 	pthread_cond_destroy(&ptr->notempty);
 	free(ptr);
+	ptr=NULL;
 }
 
 /*
@@ -60,6 +59,7 @@ void pipe_pushv(pipe_t *ptr, void **data, int n)
 {
 	pointer_t *p[n];
 
+	if (!ptr) return;
 	for (int i = 0; i < n; i++)
 	{
 		p[i] = malloc(sizeof(pointer_t *));
@@ -92,6 +92,7 @@ void pipe_pushv(pipe_t *ptr, void **data, int n)
  *    */
 void pipe_push(pipe_t *ptr, void *data)
 {
+	if (!ptr) return;
 	pointer_t *p = malloc(sizeof(pointer_t *));
 	if (!p)
 	{
@@ -116,6 +117,7 @@ void pipe_push(pipe_t *ptr, void *data)
  *    */
 void *pipe_pop(pipe_t *ptr)
 {
+	if (!ptr) return NULL;
 	void *data = NULL;
 	pthread_mutex_lock(&ptr->buf_lock);
 	/* wait while there is nothing in the buffer */
@@ -123,6 +125,7 @@ void *pipe_pop(pipe_t *ptr)
 	{
 		pthread_cond_wait(&ptr->notempty, &ptr->buf_lock);
 	}
+
 	pointer_t *p = TAILQ_FIRST(&ptr->head);
 	TAILQ_REMOVE(&ptr->head, p, pointers);
 	data = p->data;
@@ -139,6 +142,7 @@ void *pipe_pop(pipe_t *ptr)
  *    */
 int pipe_popv(pipe_t *ptr, void *data[], int max)
 {
+	if (!ptr) return -1;
 	pthread_mutex_lock(&ptr->buf_lock);
 	/* wait while there is nothing in the buffer */
 	while (TAILQ_EMPTY(&ptr->head))

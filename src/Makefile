@@ -22,7 +22,7 @@ SRCS = main.c worker-threads.c dragonfly-io.c dragonfly-cmds.c config.c \
 # ------------------------------------------------------------------
 # I/O modules
 # ------------------------------------------------------------------
-SRCS1 = io/io-file.c io/io-pipe.c io/io-tail.c
+SRCS1 = io/io-file.c io/io-pipe.c io/io-tail.c io/io-kafka.c
 
 # ------------------------------------------------------------------
 # Responder modules

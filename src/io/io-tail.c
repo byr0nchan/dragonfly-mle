@@ -235,7 +235,12 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
 int tail_read_line(DF_HANDLE *dh, char *buffer, int max)
 {
         int n = 0;
-        n = tail_next_line(dh, buffer, max);
+        do
+        {
+                n = tail_next_line(dh, buffer, max);
+                // when n == 0, then skip to the next line 
+                // because n ==0 is an empty string with just "\n"
+        } while (n==0);
         return n;
 }
 

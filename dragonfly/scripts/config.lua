@@ -28,7 +28,7 @@ analyzers = {
    -- { tag="ja3", script="example-ja3.lua" },
 
    -- ---------------------------------------------------------
-   -- Examples using redis ML
+   -- Machine learning examples using redis
    -- ---------------------------------------------------------
    -- { tag="flow", script="example-flow.lua" },
    -- { tag="dns", script="example-dns.lua" },

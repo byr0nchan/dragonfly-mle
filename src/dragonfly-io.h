@@ -37,7 +37,10 @@
 #define DF_CLIENT_IPC_TYPE  3
 #define DF_SERVER_IPC_TYPE  4
 #define DF_IN_TAIL_TYPE 5
-#define DF_CMD_SURICATA 6
+#define DF_IN_KAFKA_TYPE 6
+#define DF_OUT_KAFKA_TYPE 7
+#define DF_CMD_SURICATA 8
+
 
 #define DF_MAX_BUFFER_LEN 2048
 
@@ -47,6 +50,7 @@ typedef struct _DF_HANDLE_
     int fd;
     int io_type;
     char *path;
+    void *ptr;
 } DF_HANDLE;
 
 DF_HANDLE *dragonfly_io_open(const char *path, int spec);

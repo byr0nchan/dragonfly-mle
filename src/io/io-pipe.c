@@ -52,6 +52,9 @@ int ipc_reopen(DF_HANDLE *dh)
         close(dh->fd);
         if ((dh->fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
         {
+#ifdef __DEBUG__
+                fprintf(stderr, "unable to create socke: %s", strerror(errno));
+#endif
                 syslog(LOG_ERR, "unable to create socket: %s\n", strerror(errno));
                 return -1;
         }
@@ -70,6 +73,9 @@ int ipc_reopen(DF_HANDLE *dh)
                 if ((s = bind(dh->fd, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
                         syslog(LOG_ERR, "unable to bind socket %s: %s\n", dh->path, strerror(errno));
+#ifdef __DEBUG__
+                fprintf(stderr, "unable to bind socket %s: %s\n", dh->path, strerror(errno));
+#endif
                         return -1;
                 }
         }
@@ -81,6 +87,9 @@ int ipc_reopen(DF_HANDLE *dh)
                 if ((s = connect(dh->fd, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
                         syslog(LOG_ERR, "unable to connect socket: %s - %s\n", dh->path, strerror(errno));
+#ifdef __DEBUG__
+                        fprintf(stderr, "unable to connect socket: %s - %s\n", dh->path, strerror(errno));
+#endif
                         return -1;
                 }
         }
@@ -246,6 +255,9 @@ int ipc_write_message(DF_HANDLE *dh, char *buffer)
         int len = strnlen(buffer, DF_MAX_BUFFER_LEN);
         if (len == 0 || len == DF_MAX_BUFFER_LEN)
         {
+#ifdef __DEBUG__
+                        fprintf(stderr, "%s:%i %i length message\n", __FUNCTION__, __LINE__, len);
+#endif
                 return -1;
         }
         int n = 0;

@@ -71,19 +71,19 @@ void run_self_tests(const char *dragonfly_root)
 	SELF_TEST2(dragonfly_root);
 	sleep(2);
 
-	//SELF_TEST3(dragonfly_root);
+	SELF_TEST3(dragonfly_root);
 	sleep(2);
 
-	//SELF_TEST4(dragonfly_root);
+	SELF_TEST4(dragonfly_root);
 	sleep(2);
 
-	//SELF_TEST5(dragonfly_root);
+	SELF_TEST5(dragonfly_root);
 	sleep(2);
 
-	//SELF_TEST6(dragonfly_root);
+	SELF_TEST6(dragonfly_root);
 	sleep(2);
 
-	//SELF_TEST7(dragonfly_root);
+	SELF_TEST7(dragonfly_root);
 	sleep(2);
 
 	SELF_TEST8(dragonfly_root);
