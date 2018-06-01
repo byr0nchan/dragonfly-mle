@@ -6,7 +6,7 @@ CC = gcc
 CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__ 
 INCLUDES = -I. -I./io -I./test -I./lib/pipe -I./resp -I./lib/lua-cjson -I./lib/lua-hiredis \
            -I/usr/include/lua5.1
-LIBS = -levent -lpthread -lluajit-5.1 -lhiredis -lm -lcurl
+LIBS = -lpthread -lluajit-5.1 -lhiredis -lm -lcurl
 LFLAGS = -L.
 
 TFLAGS =
