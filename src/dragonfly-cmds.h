@@ -24,13 +24,8 @@
 #ifndef _DRAGONFLY_CMD_H_
 #define _DRAGONFLY_CMD_H_
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
-#ifdef ENABLE_JIT
+#include <luajit-2.0/lauxlib.h>
 #include <luajit-2.0/luajit.h>
-#endif
 
 
 int dragonfly_date2epoch(lua_State *L);

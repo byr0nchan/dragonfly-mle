@@ -1,3 +1,5 @@
--- counters for statistics
--- 
+-- instrumenting MLE with counters for performance metrics
+-- support for Kafka consumer (input) and producer (output)
+-- additonal ML examples
+
 

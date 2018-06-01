@@ -43,7 +43,7 @@
 #include <signal.h>
 #include <limits.h>
 
-#include <lauxlib.h>
+#include <luajit-2.0/lauxlib.h>
 #include <luajit-2.0/luajit.h>
 
 #include "config.h"
