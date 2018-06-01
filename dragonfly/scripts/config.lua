@@ -30,8 +30,8 @@ analyzers = {
    -- ---------------------------------------------------------
    -- Machine learning examples using redis
    -- ---------------------------------------------------------
-   -- { tag="flow", script="example-flow.lua" },
-   -- { tag="dns", script="example-dns.lua" },
+   -- { tag="flow", script="example-flow-ml.lua" },
+   -- { tag="dns", script="example-dns-ml.lua" },
 
 }
 

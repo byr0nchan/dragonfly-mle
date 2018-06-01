@@ -213,7 +213,9 @@ void SELF_TEST7(const char *dragonfly_root)
 	}
 
 	pthread_join(tinfo, NULL);
+	sleep (1);
 	shutdown_threads();
+	sleep (1);
 	dragonfly_io_close(input);
 	closelog();
 

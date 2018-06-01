@@ -7,7 +7,7 @@
 --
 -- ----------------------------------------------
 function setup()
-	print ("EVE router running")
+	print ("EVE ETL running")
 end
 
 -- ----------------------------------------------

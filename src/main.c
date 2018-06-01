@@ -42,6 +42,7 @@
 
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
 #define DRAGONFLY_DIR "/opt/dragonfly"
+#define TMP_DIR "/tmp/"
 
 int g_chroot = 0;
 int g_verbose = 0;
@@ -118,7 +119,7 @@ int main(int argc, char **argv)
 	}
 
 #ifdef RUN_UNIT_TESTS
-	run_self_tests(g_dragonfly_root);
+	run_self_tests(TMP_DIR);
 #endif
 
 	signal(SIGPIPE, SIG_IGN);

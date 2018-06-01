@@ -3,5 +3,8 @@ function setup()
 end
 
 function loop(msg)
-   analyze_event ("test", msg)
+   local eve = cjson.decode(msg)
+   if eve then
+       analyze_event (eve.event_type, msg)
+   end
 end
