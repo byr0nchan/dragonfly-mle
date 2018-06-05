@@ -191,7 +191,7 @@ void SELF_TEST7(const char *dragonfly_root)
 	/*
 	 * read messages
 	 */
-#define QUANTUM 1000
+#define QUANTUM 10000
 	char buffer[4096];
 	clock_t last_time = clock();
 	for (unsigned long i = 0; i < MAX_TEST7_MESSAGES; i++)
@@ -213,9 +213,9 @@ void SELF_TEST7(const char *dragonfly_root)
 	}
 
 	pthread_join(tinfo, NULL);
-	sleep (1);
+	sleep (2);
 	shutdown_threads();
-	sleep (1);
+	sleep (2);
 	dragonfly_io_close(input);
 	closelog();
 

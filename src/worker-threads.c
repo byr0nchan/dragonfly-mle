@@ -422,7 +422,7 @@ static void *lua_input_thread(void *ptr)
     }
 
     pthread_barrier_wait(&g_barrier);
-    syslog(LOG_NOTICE, "Running %s\n", lua_script);
+    syslog(LOG_NOTICE, "Running %s\n", input->tag);
 
     while (g_running)
     {
@@ -430,7 +430,7 @@ static void *lua_input_thread(void *ptr)
     }
 
     lua_close(L);
-    syslog(LOG_NOTICE, "%s exiting", lua_script);
+    syslog(LOG_NOTICE, "%s exiting", input->tag);
     pthread_exit(NULL);
 }
 
@@ -650,7 +650,7 @@ static void *lua_analyzer_thread(void *ptr)
     }
 
     pthread_barrier_wait(&g_barrier);
-    syslog(LOG_NOTICE, "Running %s\n", lua_script);
+    syslog(LOG_NOTICE, "Running %s\n", analyzer->tag);
 
     while (g_running)
     {
@@ -658,7 +658,7 @@ static void *lua_analyzer_thread(void *ptr)
     }
     lua_close(L);
 
-    syslog(LOG_NOTICE, "%s exiting", lua_script);
+    syslog(LOG_NOTICE, "%s exiting", analyzer->tag);
     pthread_exit(NULL);
 }
 

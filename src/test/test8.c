@@ -167,9 +167,10 @@ void SELF_TEST8(const char *dragonfly_root)
 	msg[sizeof(msg) - 1] = '\0';
 	dragonfly_io_write(pump, msg);
 
-	sleep(1);
-
+	sleep(2);
 	shutdown_threads();
+	sleep (2);
+
 	dragonfly_io_close(pump);
 	closelog();
 

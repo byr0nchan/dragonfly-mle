@@ -41,6 +41,8 @@
 #include "dragonfly-io.h"
 extern int g_running;
 
+#define WAIT_INTERVAL 4
+
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -63,31 +65,31 @@ void run_self_tests(const char *dragonfly_root)
 	mkdir(log_dir, 0755);
 
 	SELF_TEST0(dragonfly_root);
-	sleep(2);
+	sleep(WAIT_INTERVAL);
 
 	SELF_TEST1(dragonfly_root);
-	sleep(2);
+	sleep(WAIT_INTERVAL);
 
 	SELF_TEST2(dragonfly_root);
-	sleep(2);
+	sleep (WAIT_INTERVAL);
 
 	SELF_TEST3(dragonfly_root);
-	sleep(2);
+	sleep(WAIT_INTERVAL);
 
 	SELF_TEST4(dragonfly_root);
-	sleep(2);
+	sleep(WAIT_INTERVAL);
 
 	SELF_TEST5(dragonfly_root);
-	sleep(2);
+	sleep(WAIT_INTERVAL);
 
 	SELF_TEST6(dragonfly_root);
-	sleep(2);
+	sleep(WAIT_INTERVAL);
 
 	SELF_TEST7(dragonfly_root);
-	sleep(2);
+	sleep(WAIT_INTERVAL);
 
 	SELF_TEST8(dragonfly_root);
-	sleep(2);
+	sleep(WAIT_INTERVAL);
 
 	rmdir(scripts_dir);
 	rmdir(log_dir);
