@@ -30,7 +30,7 @@ A scalable, scriptable, streaming application engine for network threat detectio
 - Implemented in C with scalable multi-threaded execution paths
 - User-defined LuaJIT scripting with native support for json and redis
 - Native support for Redis ML operations ( https://oss.redislabs.com/redisml/ )
-- Able to run as a Dockerize an application
+- Able to run as a Dockerized application
 
 #### ARCHITECTURE
 The MLE pipeline implemented as a user-configurable system of queues with three types of event processors:
@@ -89,7 +89,7 @@ Using Docker, this example assumes there is an instance of Suricata already insa
      $ docker build -t dragonfly .
      $ docker run -it -v /var/log/suricata/log:/opt/dragonfly/log dragonfly
 
-For better grasp on how things function, be sure to study Dockerfile, config.lua and the example scripts referenced.  Remember to rebuild the Docker image whenever any changes are made to any of the scripts.
+For better grasp on how things function, be sure to study the Dockerfile, config.lua and the example scripts referenced.  Remember to rebuild the Docker image whenever any changes are made to any of the scripts.
 
 #### EXAMPLES
 
