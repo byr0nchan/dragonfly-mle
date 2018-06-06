@@ -62,7 +62,6 @@ extern int g_chroot;
 extern int g_drop_priv;
 
 static char g_root_dir[PATH_MAX];
-static char g_run_dir[PATH_MAX];
 static char g_log_dir[PATH_MAX];
 static char g_scripts_dir[PATH_MAX];
 static char g_config_file[PATH_MAX];
@@ -318,10 +317,9 @@ void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
         {
             lua_getglobal(L, "loop");
             lua_pushlstring(L, ptr[i]->buffer, ptr[i]->len);
-            int error = lua_pcall(L, 1, 0, 0);
-            if (error)
+            if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
             {
-                syslog(LOG_ERR, "%s: lua_pcall error (%d): - %s", __FUNCTION__, error, lua_tostring(L, -1));
+                syslog(LOG_ERR, "%s: lua_pcall error : - %s", __FUNCTION__, lua_tostring(L, -1));
                 lua_pop(L, 1);
                 exit(EXIT_FAILURE);
             }
@@ -403,7 +401,7 @@ static void *lua_input_thread(void *ptr)
     {
         syslog(LOG_ERR, "luaL_loadfile %s failed - %s", lua_script, lua_tostring(L, -1));
         lua_pop(L, 1);
-        pthread_exit(NULL);
+        exit(EXIT_FAILURE);
     }
     luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE | LUAJIT_MODE_ON);
     syslog(LOG_INFO, "Loaded %s", lua_script);
@@ -414,11 +412,11 @@ static void *lua_input_thread(void *ptr)
 
     /* initialize the script */
     lua_getglobal(L, "setup");
-    if (lua_pcall(L, 0, 0, 0))
+    if (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN)
     {
         syslog(LOG_ERR, "%s error; %s", lua_script, lua_tostring(L, -1));
         lua_pop(L, 1);
-        signal_shutdown(-1);
+        exit(EXIT_FAILURE);
     }
 
     pthread_barrier_wait(&g_barrier);
@@ -519,7 +517,7 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
         {
             lua_getglobal(L, "loop");
             lua_pushlstring(L, ptr[i]->buffer, ptr[i]->len);
-            if (lua_pcall(L, 1, 0, 0))
+            if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
             {
                 syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
                 lua_pop(L, 1);
@@ -575,7 +573,7 @@ static void *lua_analyzer_thread(void *ptr)
     {
         syslog(LOG_ERR, "luaL_loadfile %s failed - %s", lua_script, lua_tostring(L, -1));
         lua_pop(L, 1);
-        pthread_exit(NULL);
+        exit(EXIT_FAILURE);
     }
     luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE | LUAJIT_MODE_ON);
     syslog(LOG_INFO, "Loaded %s", lua_script);
@@ -642,11 +640,12 @@ static void *lua_analyzer_thread(void *ptr)
 
     /* initialize the script */
     lua_getglobal(L, "setup");
-    if (lua_pcall(L, 0, 0, 0))
+    if (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN)
     {
         syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
         lua_pop(L, 1);
-        signal_shutdown(-1);
+        //signal_shutdown(-1);
+        exit(EXIT_FAILURE);
     }
 
     pthread_barrier_wait(&g_barrier);
@@ -710,17 +709,14 @@ void initialize_configuration(const char *dragonfly_root)
     free(path);
 
 #ifdef __DEBUG__
-    snprintf(g_run_dir, PATH_MAX, "%s/%s", dragonfly_root, RUN_DIR);
     snprintf(g_scripts_dir, PATH_MAX, "%s/%s", dragonfly_root, SCRIPTS_DIR);
     snprintf(g_config_file, PATH_MAX, "%s/%s", g_scripts_dir, CONFIG_FILE);
 #endif
 
-    strncpy(g_run_dir, RUN_DIR, PATH_MAX);
     strncpy(g_scripts_dir, SCRIPTS_DIR, PATH_MAX);
     snprintf(g_log_dir, PATH_MAX, "%s", LOG_DIR);
     snprintf(g_config_file, PATH_MAX, "%s/%s", g_scripts_dir, CONFIG_FILE);
 
-    syslog(LOG_INFO, "run dir: %s\n", g_run_dir);
     syslog(LOG_INFO, "analyzer dir: %s\n", g_scripts_dir);
 
     struct stat sb;
@@ -758,11 +754,11 @@ void initialize_configuration(const char *dragonfly_root)
         syslog(LOG_ERR, "luaL_loadfile failed; %s", lua_tostring(L, -1));
         abort();
     }
-    if (lua_pcall(L, 0, 0, 0))
+    if (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN)
     {
         syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
         lua_pop(L, 1);
-        abort();
+        exit(EXIT_FAILURE);
     }
     lua_getglobal(L, "redis_port");
     if (lua_isstring(L, -1))
@@ -811,7 +807,7 @@ void initialize_configuration(const char *dragonfly_root)
 void shutdown_threads()
 {
     g_running = 0;
-    sleep (1);
+    sleep(1);
 
     int n = 0;
     while (g_thread[n])
@@ -870,7 +866,7 @@ void startup_threads(const char *dragonfly_root)
     fprintf(stderr, "%s\n", __FUNCTION__);
 #endif
     /*
-     * Caution: The path below must be defined relative to chdir (g_run_dir) 
+     * Caution: The path below must be defined relative to chdir (g_root_dir) 
      *		so that it works if chroot() is in effect. See above.
      */
     int n = 0;
@@ -966,7 +962,7 @@ void startup_threads(const char *dragonfly_root)
         fprintf(stderr, "\nDropping privileges\n");
         if (setgid(getgid()) < 0)
         {
-                syslog(LOG_ERR, "setgid: %s", strerror(errno));
+            syslog(LOG_ERR, "setgid: %s", strerror(errno));
         }
         struct passwd *pwd = getpwnam(USER_NOBODY);
         if (pwd && setuid(pwd->pw_uid) != 0)
