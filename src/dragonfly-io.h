@@ -32,6 +32,7 @@
 #define DF_ERR 4
 #define DF_CMD 8
 
+#define DF_OUT_SYSLOG_TYPE 0
 #define DF_IN_FILE_TYPE 1
 #define DF_OUT_FILE_TYPE 2
 #define DF_CLIENT_IPC_TYPE  3
@@ -40,7 +41,6 @@
 #define DF_IN_KAFKA_TYPE 6
 #define DF_OUT_KAFKA_TYPE 7
 #define DF_CMD_SURICATA 8
-
 
 #define DF_MAX_BUFFER_LEN 2048
 

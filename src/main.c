@@ -35,7 +35,15 @@
 #include <pthread.h>
 #include <errno.h>
 #include <sys/stat.h>
+
+#include <limits.h>
+#ifdef __linux__
 #include <linux/limits.h>
+#endif
+#ifdef __FreeBSD__
+#include <pthread_np.h>
+#include <sys/limits.h>
+#endif
 
 #include "test.h"
 #include "worker-threads.h"

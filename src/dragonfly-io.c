@@ -36,7 +36,7 @@
 #include "io-tail.h"
 #include "io-pipe.h"
 #include "io-kafka.h"
-
+#include "io-syslog.h"
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -64,6 +64,10 @@ DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
         {
                 return ipc_open(((const char *)uri + 11), spec);
         }
+        else if (strncmp("syslog://", uri, 9) == 0)
+        {
+                return ipc_open(((const char *)uri + 9), spec);
+        }
         return NULL;
 }
 
@@ -88,6 +92,10 @@ int dragonfly_io_write(DF_HANDLE *dh, char *buffer)
        else if (dh->io_type == DF_OUT_KAFKA_TYPE)
         {
                 return kafka_write_message(dh, buffer);
+        }
+       else if (dh->io_type == DF_OUT_SYSLOG_TYPE)
+        {
+                return syslog_write_message(dh, buffer);
         }
         return -1;
 }
