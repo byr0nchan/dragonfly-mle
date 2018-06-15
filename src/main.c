@@ -21,8 +21,6 @@
  *
  */
 
-#define _GNU_SOURCE
-
 #include <sys/un.h>
 #include <string.h>
 #include <stdlib.h>
@@ -132,7 +130,9 @@ int main(int argc, char **argv)
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
+#endif
 	launch_lua_threads(g_dragonfly_root);
 
 	while (g_running)

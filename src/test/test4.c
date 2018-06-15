@@ -23,8 +23,6 @@
 
 #ifdef RUN_UNIT_TESTS
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -32,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <syslog.h>
@@ -108,16 +107,23 @@ void SELF_TEST4(const char *dragonfly_root)
 	 * generate lua scripts
 	 */
 	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
+#endif
 	startup_threads(dragonfly_root);
 
 	sleep(1);
@@ -154,7 +160,7 @@ void SELF_TEST4(const char *dragonfly_root)
 		}
 	}
 	dragonfly_io_close(pump);
-	sleep (1);
+	sleep(1);
 	shutdown_threads();
 	closelog();
 

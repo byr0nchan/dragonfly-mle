@@ -40,8 +40,9 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
-#include <lua.h>
-#include <lauxlib.h>
+#include <luajit-2.0/lauxlib.h>
+#include <luajit-2.0/luajit.h>
+
 
 #include "strbuf.h"
 #include "fpconv.h"

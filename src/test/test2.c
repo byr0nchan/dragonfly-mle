@@ -23,8 +23,6 @@
 
 #ifdef RUN_UNIT_TESTS
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -36,6 +34,7 @@
 #include <signal.h>
 #include <syslog.h>
 #include <pthread.h>
+#include <errno.h>
 #include <assert.h>
 
 #include "worker-threads.h"
@@ -68,6 +67,7 @@ static const char *INPUT_LUA =
 const char *ANALYZER_LUA =
 	"function setup()\n"
 	"  conn = assert(hiredis.connect())\n"
+	"  assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
 	"end\n"
 	"function loop (msg)\n"
 	"  assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
@@ -109,16 +109,23 @@ void SELF_TEST2(const char *dragonfly_root)
 	 * generate lua scripts
 	 */
 	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
+#endif
 	startup_threads(dragonfly_root);
 
 	sleep(1);
@@ -140,9 +147,9 @@ void SELF_TEST2(const char *dragonfly_root)
 			msg[j] = 'A' + (mod % 48);
 			mod++;
 		}
-		if ( i && (i % 100000) == 0 )
+		if (i && (i % 1000) == 0)
 		{
-				fprintf(stderr, "\t%lu redis pings\n", i);
+			fprintf(stderr, "\t%lu redis pings\n", i);
 		}
 		msg[sizeof(msg) - 1] = '\0';
 		dragonfly_io_write(pump, msg);

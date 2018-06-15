@@ -23,12 +23,11 @@
 
 #ifdef RUN_UNIT_TESTS
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -68,11 +67,11 @@ static const char *INPUT_LUA =
 static const char *ANALYZER_LUA =
 	"filename = \"sslblacklist.csv\"\n"
 	"function split(s, delimiter)\n"
-    "		result = {}\n"
-    "		for match in (s..delimiter):gmatch(\"(.-)\"..delimiter) do\n"
-    "   		 table.insert(result, match)\n"
-    "		end\n"
-    "		return result\n"
+	"		result = {}\n"
+	"		for match in (s..delimiter):gmatch(\"(.-)\"..delimiter) do\n"
+	"   		 table.insert(result, match)\n"
+	"		end\n"
+	"		return result\n"
 	"end\n"
 	"function setup()\n"
 	"   http_get (\"https://sslbl.abuse.ch/blacklist/sslblacklist.csv\",filename)\n"
@@ -96,7 +95,7 @@ static const char *ANALYZER_LUA =
 	"	end\n"
 	"end\n"
 	"function loop (msg)\n"
-    "\n"
+	"\n"
 	"\n"
 	"end\n";
 
@@ -136,7 +135,14 @@ void SELF_TEST8(const char *dragonfly_root)
 	 * generate lua scripts
 	 */
 	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
+
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
 	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
 	free(path);
 	write_file(config_path, CONFIG_LUA);
@@ -145,7 +151,9 @@ void SELF_TEST8(const char *dragonfly_root)
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
+#endif
 	startup_threads(dragonfly_root);
 
 	sleep(1);
@@ -158,7 +166,7 @@ void SELF_TEST8(const char *dragonfly_root)
 
 	sleep(1);
 	int mod = 0;
-	char msg [256];
+	char msg[256];
 	for (int j = 0; j < (sizeof(msg) - 1); j++)
 	{
 		msg[j] = 'A' + (mod % 48);
@@ -169,7 +177,7 @@ void SELF_TEST8(const char *dragonfly_root)
 
 	sleep(2);
 	shutdown_threads();
-	sleep (2);
+	sleep(2);
 
 	dragonfly_io_close(pump);
 	closelog();

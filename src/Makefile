@@ -4,9 +4,9 @@
 
 CC = gcc
 CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__ 
-INCLUDES = -I. -I./io -I./test -I./lib/pipe -I./resp -I./lib/lua-cjson -I./lib/lua-hiredis \
+INCLUDES = -I. -I./io -I./test -I./lib/msgqueue -I./resp -I./lib/lua-cjson -I./lib/lua-hiredis \
            -I/usr/include/lua5.1
-LIBS = -lpthread -lluajit-5.1 -lhiredis -lm -lcurl
+LIBS = -lpthread -lluajit-5.1 -lhiredis -lm -lcurl -lrt
 LFLAGS = -L.
 
 TFLAGS =
@@ -33,7 +33,7 @@ SRCS2 = resp/resp-suricata.c
 # third party open-source libraries
 # ------------------------------------------------------------------
 SRCS3 = lib/lua-hiredis/lua-hiredis.c lib/lua-cjson/lua-cjson.c \
-        lib/lua-cjson/strbuf.c lib/lua-cjson/fpconv.c lib/pipe/pipe.c
+        lib/lua-cjson/strbuf.c lib/lua-cjson/fpconv.c lib/msgqueue/msgqueue.c
 
 # ------------------------------------------------------------------
 # unit test files

@@ -20,8 +20,6 @@
  * author Randy Caldejon <rc@counterflowai.com>
  */
 
-#define _GNU_SOURCE
-
 #include <pwd.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -48,7 +46,7 @@
 
 #include "lua-hiredis.h"
 #include "lua-cjson.h"
-#include "pipe.h"
+#include "mqueue.h"
 
 #include "worker-threads.h"
 #include "dragonfly-cmds.h"
@@ -79,21 +77,6 @@ int g_redis_port = 6379;
 
 #define ROTATE_MESSAGE "+rotate+"
 
-typedef struct __DATA_BUFFER_
-{
-    char buffer[_MAX_BUFFER_SIZE_];
-    int len;
-    int id;
-} DATA_BUFFER;
-
-typedef struct _BUFFER_QUEUE_
-{
-    DATA_BUFFER list[MAX_DATA_BLOCKS];
-    pipe_t *pipe;
-    int number;
-} BUFFER_QUEUE;
-
-static BUFFER_QUEUE g_buffer_queue;
 static INPUT_CONFIG g_input_list[MAX_INPUT_STREAMS];
 static INPUT_CONFIG g_flywheel_list[MAX_INPUT_STREAMS];
 static OUTPUT_CONFIG g_output_list[MAX_OUTPUT_STREAMS];
@@ -151,10 +134,7 @@ void signal_log_rotate(int signum)
     syslog(LOG_INFO, "%s", __FUNCTION__);
     for (int i = 0; g_output_list[i].tag != NULL; i++)
     {
-        DATA_BUFFER *ptr = pipe_pop(g_buffer_queue.pipe);
-        ptr->len = strnlen(ROTATE_MESSAGE, _MAX_BUFFER_SIZE_);
-        strcpy(ptr->buffer, ROTATE_MESSAGE);
-        pipe_push(g_output_list[i].pipe, (void *)ptr);
+        msgqueue_send(g_output_list[i].queue, ROTATE_MESSAGE, strlen(ROTATE_MESSAGE));
     }
 }
 
@@ -176,11 +156,7 @@ int analyze_event(lua_State *L)
     {
         if (strcasecmp(name, g_analyzer_list[i].tag) == 0)
         {
-            DATA_BUFFER *ptr = pipe_pop(g_buffer_queue.pipe);
-            memcpy(ptr->buffer, message, len);
-            ptr->len = len;
-            ptr->buffer[len] = '\0';
-            pipe_push(g_analyzer_list[i].pipe, (void *)ptr);
+            msgqueue_send(g_analyzer_list[i].queue, message, len);
             return 0;
         }
     }
@@ -206,11 +182,7 @@ int output_event(lua_State *L)
     {
         if (strcasecmp(name, g_output_list[i].tag) == 0)
         {
-            DATA_BUFFER *ptr = pipe_pop(g_buffer_queue.pipe);
-            ptr->len = len;
-            memcpy(ptr->buffer, message, ptr->len);
-            ptr->buffer[ptr->len] = '\0';
-            pipe_push(g_output_list[i].pipe, (void *)ptr);
+            msgqueue_send(g_output_list[i].queue, message, len);
             return 0;
         }
     }
@@ -253,19 +225,15 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
 {
     while (g_running)
     {
-        DATA_BUFFER *ptr[MAX_IO_VECTOR];
-        int n = pipe_popv(g_buffer_queue.pipe, (void **)ptr, MAX_IO_VECTOR);
-        for (int i = 0; i < n; i++)
+        int len = 0;
+        char buffer[_MAX_BUFFER_SIZE_];
+
+        if ((len = dragonfly_io_read(flywheel->input, buffer, (_MAX_BUFFER_SIZE_ - 1))) <= 0)
         {
-            if ((ptr[i]->len = dragonfly_io_read(flywheel->input, ptr[i]->buffer, (_MAX_BUFFER_SIZE_ - 1))) < 0)
-            {
-                fprintf(stderr, "DEBUG-> %s: %i read ERROR\n", __FUNCTION__, __LINE__);
-                pipe_push(g_buffer_queue.pipe, (void *)ptr);
-                return;
-            }
-            ptr[i]->buffer[ptr[i]->len] = '\0';
-            pipe_push(flywheel->pipe, (void *)ptr[i]);
+            fprintf(stderr, "DEBUG-> %s: %i read ERROR\n", __FUNCTION__, __LINE__);
+            return;
         }
+        msgqueue_send(flywheel->queue, buffer, len);
     }
 }
 
@@ -279,7 +247,9 @@ static void *lua_flywheel_thread(void *ptr)
     INPUT_CONFIG *flywheel = (INPUT_CONFIG *)ptr;
 
     pthread_detach(pthread_self());
+#ifdef _GNU_SOURCE
     pthread_setname_np(pthread_self(), flywheel->tag);
+#endif
     pthread_barrier_wait(&g_barrier);
 
     syslog(LOG_NOTICE, "Running %s\n", flywheel->tag);
@@ -292,9 +262,7 @@ static void *lua_flywheel_thread(void *ptr)
         lua_flywheel_loop(flywheel);
         dragonfly_io_close(flywheel->input);
     }
-
     syslog(LOG_NOTICE, "%s exiting", flywheel->tag);
-    pthread_exit(NULL);
     return (void *)NULL;
 }
 /*
@@ -304,6 +272,8 @@ static void *lua_flywheel_thread(void *ptr)
  */
 void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
 {
+    int n;
+    char buffer[_MAX_BUFFER_SIZE_];
     /*
      * Disable I/O in the loop() entry point.
      */
@@ -311,22 +281,20 @@ void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
 
     while (g_running)
     {
-        DATA_BUFFER *ptr[MAX_IO_VECTOR];
-        int n = pipe_popv(input->pipe, (void **)ptr, MAX_IO_VECTOR);
-        for (int i = 0; i < n; i++)
+        if ((n = msgqueue_recv(input->queue, buffer, _MAX_BUFFER_SIZE_)) < 0)
         {
-            lua_getglobal(L, "loop");
-            lua_pushlstring(L, ptr[i]->buffer, ptr[i]->len);
-            if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
-            {
-                syslog(LOG_ERR, "%s: lua_pcall error : - %s", __FUNCTION__, lua_tostring(L, -1));
-                lua_pop(L, 1);
-                exit(EXIT_FAILURE);
-            }
-            pipe_push(g_buffer_queue.pipe, (void *)ptr[i]);
+            return;
+        }
+
+        lua_getglobal(L, "loop");
+        lua_pushlstring(L, buffer, n);
+        if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
+        {
+            syslog(LOG_ERR, "%s: lua_pcall error : - %s", __FUNCTION__, lua_tostring(L, -1));
+            lua_pop(L, 1);
+            exit(EXIT_FAILURE);
         }
     }
-    exit(1);
 }
 
 /*
@@ -345,8 +313,9 @@ static void *lua_input_thread(void *ptr)
 #endif
 
     pthread_detach(pthread_self());
+#ifdef _GNU_SOURCE
     pthread_setname_np(pthread_self(), input->tag);
-
+#endif
     /*
      * Set thread name to the file name of the lua script
      */
@@ -429,7 +398,7 @@ static void *lua_input_thread(void *ptr)
 
     lua_close(L);
     syslog(LOG_NOTICE, "%s exiting", input->tag);
-    pthread_exit(NULL);
+    return (void *)NULL;
 }
 
 /*
@@ -440,28 +409,27 @@ static void *lua_input_thread(void *ptr)
 
 void lua_output_loop(OUTPUT_CONFIG *output)
 {
-
+    int n;
+    char buffer[_MAX_BUFFER_SIZE_];
     while (g_running)
     {
-        DATA_BUFFER *ptr[MAX_IO_VECTOR];
-        int n = pipe_popv(output->pipe, (void **)ptr, MAX_IO_VECTOR);
-
-        for (int i = 0; i < n; i++)
+        if ((n = msgqueue_recv(output->queue, buffer, _MAX_BUFFER_SIZE_)) < 0)
         {
-            if (strcasecmp(ptr[i]->buffer, ROTATE_MESSAGE) == 0)
+            return;
+        }
+
+        buffer[n] = '\0';
+        if (strcasecmp(buffer, ROTATE_MESSAGE) == 0)
+        {
+            dragonfly_io_rotate(output->output);
+        }
+        else
+        {
+            if (dragonfly_io_write(output->output, buffer) < 0)
             {
-                dragonfly_io_rotate(output->output);
+                fprintf(stderr, "%s: output error\n", __FUNCTION__);
+                return;
             }
-            else
-            {
-                if (dragonfly_io_write(output->output, ptr[i]->buffer) < 0)
-                {
-                    fprintf(stderr, "%s: output error\n", __FUNCTION__);
-                    pipe_push(g_buffer_queue.pipe, (void *)ptr);
-                    return;
-                }
-            }
-            pipe_push(g_buffer_queue.pipe, (void *)ptr[i]);
         }
     }
 }
@@ -476,8 +444,9 @@ static void *lua_output_thread(void *ptr)
     OUTPUT_CONFIG *output = (OUTPUT_CONFIG *)ptr;
 
     pthread_detach(pthread_self());
+#ifdef _GNU_SOURCE
     pthread_setname_np(pthread_self(), output->tag);
-
+#endif
     pthread_barrier_wait(&g_barrier);
     syslog(LOG_NOTICE, "Running %s\n", output->tag);
 
@@ -492,8 +461,6 @@ static void *lua_output_thread(void *ptr)
     }
 
     syslog(LOG_NOTICE, "%s exiting", output->tag);
-    pthread_exit(NULL);
-
     return (void *)NULL;
 }
 
@@ -504,6 +471,9 @@ static void *lua_output_thread(void *ptr)
  */
 void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
 {
+
+    int n;
+    char buffer[_MAX_BUFFER_SIZE_];
     /*
      * Disable I/O in the loop() entry point.
      */
@@ -511,20 +481,19 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
 
     while (g_running)
     {
-        DATA_BUFFER *ptr[MAX_IO_VECTOR];
-        int n = pipe_popv(analyzer->pipe, (void **)ptr, MAX_IO_VECTOR);
-        for (int i = 0; i < n; i++)
+        if ((n = msgqueue_recv(analyzer->queue, buffer, _MAX_BUFFER_SIZE_)) < 0)
         {
-            lua_getglobal(L, "loop");
-            lua_pushlstring(L, ptr[i]->buffer, ptr[i]->len);
-            if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
-            {
-                syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
-                lua_pop(L, 1);
-                exit(EXIT_FAILURE);
-            }
+            return;
         }
-        pipe_pushv(g_buffer_queue.pipe, (void **)ptr, n);
+
+        lua_getglobal(L, "loop");
+        lua_pushlstring(L, buffer, n);
+        if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
+        {
+            syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
+            lua_pop(L, 1);
+            exit(EXIT_FAILURE);
+        }
     }
 }
 
@@ -544,7 +513,9 @@ static void *lua_analyzer_thread(void *ptr)
 #endif
 
     pthread_detach(pthread_self());
+#ifdef _GNU_SOURCE
     pthread_setname_np(pthread_self(), analyzer->tag);
+#endif
     /*
      * Set thread name to the file name of the lua script
      */
@@ -677,7 +648,6 @@ void destroy_configuration()
     g_num_input_threads = 0;
     g_num_output_threads = 0;
     memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
-    pipe_free(g_buffer_queue.pipe);
 }
 /*
  * ---------------------------------------------------------------------------------------
@@ -704,7 +674,12 @@ void initialize_configuration(const char *dragonfly_root)
         }
         syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
     }
-    char *path = get_current_dir_name();
+    char *path = getcwd(NULL, PATH_MAX);
+    if (path == NULL)
+    {
+        syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
     syslog(LOG_INFO, "chdir: %s\n", path);
     free(path);
 
@@ -734,17 +709,7 @@ void initialize_configuration(const char *dragonfly_root)
     memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
     memset(g_input_list, 0, sizeof(g_input_list));
     memset(g_output_list, 0, sizeof(g_output_list));
-    /*
-     * prime free list
-    */
-    g_buffer_queue.pipe = pipe_new(MAX_DATA_BLOCKS);
 
-    for (int i = 0; i < MAX_DATA_BLOCKS; i++)
-    {
-        DATA_BUFFER *ptr = &g_buffer_queue.list[i];
-        ptr->id = i;
-        pipe_push(g_buffer_queue.pipe, ptr);
-    }
     lua_State *L = luaL_newstate();
     /*
      * Load config.lua
@@ -807,37 +772,42 @@ void initialize_configuration(const char *dragonfly_root)
 void shutdown_threads()
 {
     g_running = 0;
+
     sleep(1);
 
     int n = 0;
     while (g_thread[n])
     {
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
         fprintf(stderr, "%s:%i %i\n", __FUNCTION__, __LINE__, n);
 #endif
+
         pthread_join(g_thread[n++], NULL);
     }
 
     for (int i = 0; g_input_list[i].uri != NULL; i++)
     {
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_input_list[i].script);
 #endif
-        pipe_free(g_input_list[i].pipe);
+        msgqueue_cancel(g_input_list[i].queue);
+        msgqueue_destroy(g_input_list[i].queue);
     }
     for (int i = 0; g_analyzer_list[i].script != NULL; i++)
     {
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_analyzer_list[i].script);
 #endif
-        pipe_free(g_analyzer_list[i].pipe);
+        msgqueue_cancel(g_analyzer_list[i].queue);
+        msgqueue_destroy(g_analyzer_list[i].queue);
     }
-    for (int i = 0; g_output_list[i].pipe != NULL; i++)
+    for (int i = 0; g_output_list[i].queue != NULL; i++)
     {
-#ifdef __DEBUG__
+#ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_analyzer_list[i].script);
 #endif
-        pipe_free(g_output_list[i].pipe);
+        msgqueue_cancel(g_output_list[i].queue);
+        msgqueue_destroy(g_output_list[i].queue);
     }
     destroy_configuration();
 
@@ -877,7 +847,7 @@ void startup_threads(const char *dragonfly_root)
         {
             for (int j = 0; j < MAX_WORKER_THREADS; j++)
             {
-                g_input_list[i].pipe = pipe_new(MAX_PIPE_LENGTH);
+                g_input_list[i].queue = msgqueue_create(QUEUE_INPUT, _MAX_BUFFER_SIZE_, MAX_PIPE_LENGTH);
                 /*
          * check that file exists with execute permissions
          */
@@ -912,7 +882,7 @@ void startup_threads(const char *dragonfly_root)
     {
         if (g_output_list[i].uri != NULL)
         {
-            g_output_list[i].pipe = pipe_new(MAX_PIPE_LENGTH);
+            g_output_list[i].queue = msgqueue_create(QUEUE_OUTPUT, _MAX_BUFFER_SIZE_, MAX_PIPE_LENGTH);
             /*
          * check that file exists with execute permissions
          */
@@ -932,8 +902,7 @@ void startup_threads(const char *dragonfly_root)
     {
         if (g_analyzer_list[i].script != NULL)
         {
-            g_analyzer_list[i].pipe = pipe_new(MAX_PIPE_LENGTH);
-
+            g_analyzer_list[i].queue = msgqueue_create(QUEUE_ANALYZER, _MAX_BUFFER_SIZE_, MAX_PIPE_LENGTH);
             /*
          * check that file exists with execute permissions
          */
@@ -956,7 +925,6 @@ void startup_threads(const char *dragonfly_root)
 #endif
     pthread_barrier_wait(&g_barrier);
 
-    //if (getuid() == 0)
     if (g_drop_priv)
     {
         fprintf(stderr, "\nDropping privileges\n");

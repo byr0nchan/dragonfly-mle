@@ -37,6 +37,7 @@
 #include <syslog.h>
 #include <pthread.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "worker-threads.h"
 #include "dragonfly-io.h"
@@ -115,9 +116,14 @@ void SELF_TEST0(const char *dragonfly_root)
 	 * generate lua scripts
 	 */
 	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);

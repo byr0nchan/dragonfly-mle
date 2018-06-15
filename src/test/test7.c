@@ -23,12 +23,11 @@
 
 #ifdef RUN_UNIT_TESTS
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -98,7 +97,9 @@ static void write_file(const char *file_path, const char *content)
  */
 static void *producer_thread(void *ptr)
 {
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "writer");
+#endif
 	DF_HANDLE *pump = dragonfly_io_open("file://input.txt", DF_OUT);
 	if (!pump)
 	{
@@ -155,13 +156,20 @@ void SELF_TEST7(const char *dragonfly_root)
 	const char *config_path = "./scripts/config.lua";
 
 	fprintf(stderr, "\n\n%s: truncating file while tailing %d messages from input to output.ipc\n",
-			         __FUNCTION__, MAX_TEST7_MESSAGES);
+			__FUNCTION__, MAX_TEST7_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
 	 */
 	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
+
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
 	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
 	free(path);
 	write_file(config_path, CONFIG_LUA);
@@ -170,8 +178,9 @@ void SELF_TEST7(const char *dragonfly_root)
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
-
+#endif
 	DF_HANDLE *input = dragonfly_io_open("ipc://output.ipc", DF_IN);
 	if (!input)
 	{
@@ -191,7 +200,7 @@ void SELF_TEST7(const char *dragonfly_root)
 	/*
 	 * read messages
 	 */
-#define QUANTUM 10000
+#define QUANTUM 1000
 	char buffer[4096];
 	clock_t last_time = clock();
 	for (unsigned long i = 0; i < MAX_TEST7_MESSAGES; i++)
@@ -213,9 +222,9 @@ void SELF_TEST7(const char *dragonfly_root)
 	}
 
 	pthread_join(tinfo, NULL);
-	sleep (2);
+	sleep(2);
 	shutdown_threads();
-	sleep (2);
+	sleep(2);
 	dragonfly_io_close(input);
 	closelog();
 

@@ -23,8 +23,6 @@
 
 #ifdef RUN_UNIT_TESTS
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -47,7 +45,7 @@
 
 extern int g_running;
 
-#define MAX_TEST5_MESSAGES 1000000
+#define MAX_TEST5_MESSAGES 10000
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -102,7 +100,9 @@ static void write_file(const char *file_path, const char *content)
  */
 static void *consumer_thread(void *ptr)
 {
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "reader");
+#endif
 	DF_HANDLE *pump_in = dragonfly_io_open("ipc://output.ipc", DF_IN);
 	if (!pump_in)
 	{
@@ -123,8 +123,8 @@ static void *consumer_thread(void *ptr)
 		{
 			break;
 		}
-		
-#define QUANTUM 100000
+
+#define QUANTUM 1000
 		if ((i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();
@@ -153,17 +153,24 @@ void SELF_TEST5(const char *dragonfly_root)
 	 * generate lua scripts
 	 */
 	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
-	pthread_setname_np(pthread_self(), "dragonfly");
 
+#ifdef _GNU_SOURCE
+	pthread_setname_np(pthread_self(), "dragonfly");
+#endif
 	pthread_t tinfo;
 	if (pthread_create(&tinfo, NULL, consumer_thread, (void *)NULL) != 0)
 	{

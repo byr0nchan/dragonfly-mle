@@ -25,7 +25,7 @@
 #define __CONFIG__
 
 #include "dragonfly-io.h"
-#include "pipe.h"
+#include "msgqueue.h"
 
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
 #define RUN_DIR "run"
@@ -38,28 +38,32 @@
 #define DRAGONFLY_LOG_DIR "log"
 #define DRAGONFLY_LOG_NAME "dragonfly.log"
 
+#define QUEUE_INPUT "/input_queue"
+
 typedef struct _INPUT_CONFIG_
 {
     char *tag;
     char *uri;
     char *script;
     DF_HANDLE *input;
-    pipe_t *pipe;
+    queue_t *queue;
 } INPUT_CONFIG;
 
+#define QUEUE_OUTPUT "/output_queue"
 typedef struct _OUTPUT_CONFIG_
 {
     char *tag;
     char *uri;
     DF_HANDLE *output;
-    pipe_t *pipe;
+    queue_t *queue;
 } OUTPUT_CONFIG;
 
+#define QUEUE_ANALYZER "/analyzer_queue"
 typedef struct _ANALYZER_CONFIG_
 {
     char *tag;
     char *script;
-    pipe_t *pipe;
+    queue_t *queue;
 } ANALYZER_CONFIG;
 
 typedef struct _RESPONDER_CONFIG_

@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <time.h>
 #include <sys/socket.h>
@@ -266,11 +267,23 @@ int ipc_write_message(DF_HANDLE *dh, char *buffer)
                 n = send(dh->fd, buffer, len, MSG_NOSIGNAL);
                 if (n < 0)
                 {
+                        switch (errno)
+                        {
+                        case ETIMEDOUT:
+                                break;
+                        case ENOBUFS:
+                                break;
+                        case EAGAIN:
+                                break;
+                        case EINVAL:
+                                break;
+                        default:
                         syslog(LOG_ERR, "send error: %s", strerror(errno));
                         perror("send");
                         exit(EXIT_FAILURE);
+                        }
                 }
-                else if (n == 0 || n == EIO)
+                else if (n == 0 || errno == EIO)
                 {
                         ipc_reopen(dh);
                 }
