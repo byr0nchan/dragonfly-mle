@@ -42,6 +42,9 @@
 
 #include "test.h"
 
+#define MAX_TEST4_MESSAGES 100000
+#define QUANTUM (MAX_TEST4_MESSAGES/10)
+
 static const char *CONFIG_LUA =
 	"inputs = {\n"
 	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
@@ -95,7 +98,7 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST4(const char *dragonfly_root)
 {
-#define MAX_TEST4_MESSAGES 10000
+
 	int halfway = (MAX_TEST4_MESSAGES / 2);
 	const char *analyzer_path = "./scripts/analyzer.lua";
 	const char *input_path = "./scripts/input.lua";

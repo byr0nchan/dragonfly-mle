@@ -16,11 +16,9 @@ typedef struct
 } queue_t;
 
 queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max);
-queue_t *msgqueue_open(const char *queue_name);
 void msgqueue_cancel(queue_t *q);
 int msgqueue_send(queue_t *q, const char *buffer, int length);
 int msgqueue_recv(queue_t *q, char *buffer, int max_size);
-void msgqueue_close(queue_t *q);
 void msgqueue_destroy(queue_t *q);
 
 #endif

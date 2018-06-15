@@ -42,6 +42,9 @@
 
 #include "test.h"
 
+#define MAX_TEST3_MESSAGES 1000000
+#define QUANTUM (MAX_TEST3_MESSAGES/10)
+
 static const char *CONFIG_LUA =
 	"inputs = {\n"
 	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
@@ -95,7 +98,6 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST3(const char *dragonfly_root)
 {
-#define MAX_TEST3_MESSAGES 10000
 	const char *analyzer_path = "./scripts/analyzer.lua";
 	const char *input_path = "./scripts/input.lua";
 	const char *config_path = "./scripts/config.lua";
@@ -155,7 +157,7 @@ void SELF_TEST3(const char *dragonfly_root)
 			fprintf(stderr, "error pumping to \"ipc://input.ipc\"\n");
 			abort();
 		}
-#define QUANTUM 10000
+
 		if ((i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();

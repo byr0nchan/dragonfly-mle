@@ -42,7 +42,8 @@
 
 #include "test.h"
 
-#define MAX_TEST6_MESSAGES 1000
+#define MAX_TEST6_MESSAGES 100000
+#define QUANTUM (MAX_TEST6_MESSAGES/10)
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -187,7 +188,6 @@ void SELF_TEST6(const char *dragonfly_root)
 	/*
 	 * write messages walking the alphabet
 	 */
-#define QUANTUM 1000
 	char buffer[4096];
 	clock_t last_time = clock();
 	for (unsigned long i = 0; i < MAX_TEST6_MESSAGES; i++)

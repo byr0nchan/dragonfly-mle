@@ -65,7 +65,7 @@ void run_self_tests(const char *dragonfly_root)
 	
 	SELF_TEST0(dragonfly_root);
 	sleep(WAIT_INTERVAL);
-/*
+
 	SELF_TEST1(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
@@ -77,7 +77,7 @@ void run_self_tests(const char *dragonfly_root)
 
 	SELF_TEST4(dragonfly_root);
 	sleep(WAIT_INTERVAL);
-*/
+
 	SELF_TEST5(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 

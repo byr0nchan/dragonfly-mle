@@ -45,7 +45,8 @@
 
 extern int g_running;
 
-#define MAX_TEST5_MESSAGES 10000
+#define MAX_TEST5_MESSAGES 100000
+#define QUANTUM (MAX_TEST5_MESSAGES/10)
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -124,7 +125,6 @@ static void *consumer_thread(void *ptr)
 			break;
 		}
 
-#define QUANTUM 1000
 		if ((i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();

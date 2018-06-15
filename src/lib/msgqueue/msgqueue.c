@@ -33,39 +33,12 @@ queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 
 	memset(q, 0, sizeof(queue_t));
 	q->queue_name = strndup(queue_name, NAME_MAX);
-	//q->attr.mq_flags = O_NONBLOCK;
 	q->attr.mq_maxmsg = queue_max;
 	q->attr.mq_msgsize = msg_max;
 	q->attr.mq_curmsgs = 0;
 
 	/* create the message queue */
 	q->mq = mq_open(q->queue_name, O_CREAT | O_CLOEXEC | O_RDWR, 0644, &q->attr);
-	//q->mq = mq_open(q->queue_name, O_CREAT | O_CLOEXEC | O_RDWR | O_NONBLOCK, 0644, &attr);
-	if (q->mq < 0)
-	{
-		syslog(LOG_ERR, "mq_open() error: %s", strerror(errno));
-		free(q);
-		exit(EXIT_FAILURE);
-	}
-	return q;
-}
-
-/*
- * ---------------------------------------------------------------------------------------
- *
- * ---------------------------------------------------------------------------------------
- */
-queue_t *msgqueue_open(const char *queue_name)
-{
-	queue_t *q = (queue_t *)malloc(sizeof(queue_t));
-	if (!q)
-		return NULL;
-
-	memset(q, 0, sizeof(queue_t));
-	q->queue_name = strndup(queue_name, PATH_MAX);
-
-	/* create the message queue */
-	q->mq = mq_open(queue_name, O_WRONLY);
 	if (q->mq < 0)
 	{
 		syslog(LOG_ERR, "mq_open() error: %s", strerror(errno));
@@ -87,21 +60,6 @@ void msgqueue_cancel(queue_t *q)
 	q->cancel = 1;
 	struct timespec tmo = {0, 50000000};
 	nanosleep(&tmo, NULL);
-}
-
-/*
- * ---------------------------------------------------------------------------------------
- *
- * ---------------------------------------------------------------------------------------
- */
-void msgqueue_close(queue_t *q)
-{
-	if (!q)
-		return;
-	mq_close(q->mq);
-	free(q->queue_name);
-	free(q);
-	q = NULL;
 }
 
 /*
@@ -182,6 +140,7 @@ int msgqueue_recv(queue_t *q, char *buffer, int max_size)
 		max_size = q->attr.mq_msgsize;
 	}
 	memset(buffer, 0, max_size);
+	
 	do
 	{
 		clock_gettime(CLOCK_REALTIME, &tm);
