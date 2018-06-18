@@ -665,15 +665,6 @@ void initialize_configuration(const char *dragonfly_root)
         exit(EXIT_FAILURE);
     }
     syslog(LOG_INFO, "root dir: %s\n", g_root_dir);
-    if (g_chroot)
-    {
-        if (chroot(g_root_dir) != 0)
-        {
-            syslog(LOG_ERR, "unable to chroot() to : %s - %s\n", g_root_dir, strerror(errno));
-            exit(EXIT_FAILURE);
-        }
-        syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
-    }
     char *path = getcwd(NULL, PATH_MAX);
     if (path == NULL)
     {
@@ -847,7 +838,7 @@ void startup_threads(const char *dragonfly_root)
         {
             for (int j = 0; j < MAX_WORKER_THREADS; j++)
             {
-                g_input_list[i].queue = msgqueue_create(QUEUE_INPUT, _MAX_BUFFER_SIZE_, MAX_PIPE_LENGTH);
+                g_input_list[i].queue = msgqueue_create(QUEUE_INPUT, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
                 /*
          * check that file exists with execute permissions
          */
@@ -882,7 +873,7 @@ void startup_threads(const char *dragonfly_root)
     {
         if (g_output_list[i].uri != NULL)
         {
-            g_output_list[i].queue = msgqueue_create(QUEUE_OUTPUT, _MAX_BUFFER_SIZE_, MAX_PIPE_LENGTH);
+            g_output_list[i].queue = msgqueue_create(QUEUE_OUTPUT, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
             /*
          * check that file exists with execute permissions
          */
@@ -897,50 +888,60 @@ void startup_threads(const char *dragonfly_root)
             }
         }
     }
-
-    for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
+#ifdef FORK_PROCESS
+    if ((g_parent_pid = fork()) == 0)
     {
-        if (g_analyzer_list[i].script != NULL)
+#endif
+        for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
         {
-            g_analyzer_list[i].queue = msgqueue_create(QUEUE_ANALYZER, _MAX_BUFFER_SIZE_, MAX_PIPE_LENGTH);
-            /*
+            if (g_analyzer_list[i].script != NULL)
+            {
+                g_analyzer_list[i].queue = msgqueue_create(QUEUE_ANALYZER, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                /*
          * check that file exists with execute permissions
          */
-            for (int j = 0; j < MAX_WORKER_THREADS; j++)
-            {
-                if (pthread_create(&(g_thread[n++]), NULL, lua_analyzer_thread, (void *)&g_analyzer_list[i]) != 0)
+                for (int j = 0; j < MAX_WORKER_THREADS; j++)
                 {
-                    syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
-                    pthread_exit(NULL);
+                    if (pthread_create(&(g_thread[n++]), NULL, lua_analyzer_thread, (void *)&g_analyzer_list[i]) != 0)
+                    {
+                        syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
+                        pthread_exit(NULL);
+                    }
                 }
             }
         }
+#ifdef FORK_PROCESS
+        if (chroot(g_root_dir) != 0)
+        {
+            syslog(LOG_ERR, "unable to chroot() to : %s - %s\n", g_root_dir, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
+        if (g_drop_priv)
+        {
+            process_drop_privilege();
+        }
+        while (g_running)
+        {
+            sleep(1);
+        }
     }
-
-    /*
-     * Wait until all analyzer threads are ready
-     */
-#ifdef __DEBUG3__
-    fprintf(stderr, "%s:%i pthread_barrier_wait()\n", __FUNCTION__, __LINE__);
-#endif
-    pthread_barrier_wait(&g_barrier);
-
-    if (g_drop_priv)
+    else if (g_parent_pid < 0)
     {
-        fprintf(stderr, "\nDropping privileges\n");
-        if (setgid(getgid()) < 0)
-        {
-            syslog(LOG_ERR, "setgid: %s", strerror(errno));
-        }
-        struct passwd *pwd = getpwnam(USER_NOBODY);
-        if (pwd && setuid(pwd->pw_uid) != 0)
-        //if (setuid(getuid()) <0)
-        {
-            syslog(LOG_ERR, "setuid(%s): %s", USER_NOBODY, strerror(errno));
-            signal_shutdown(-1);
-        }
-        syslog(LOG_INFO, "dropped privileges: %s\n", USER_NOBODY);
+        syslog(LOG_ERR, "fork() failed : %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
     }
+    else
+    {
+#endif
+        signal(SIGUSR1, signal_log_rotate);
+        if (g_drop_priv)
+        {
+            process_drop_privilege();
+        }
+#ifdef FORK_PROCESS
+    }
+#endif
     syslog(LOG_INFO, "%s: threads running\n", __FUNCTION__);
 }
 
