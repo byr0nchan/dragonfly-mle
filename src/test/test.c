@@ -34,6 +34,7 @@
 #include <signal.h>
 #include <syslog.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "test.h"
 
@@ -41,7 +42,7 @@
 #include "dragonfly-io.h"
 extern int g_running;
 
-#define WAIT_INTERVAL 4
+#define WAIT_INTERVAL 2
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -51,6 +52,20 @@ extern int g_running;
 void run_self_tests(const char *dragonfly_root)
 {
 	fprintf(stderr, "Running unit tests\n");
+
+	if (chdir(dragonfly_root) != 0)
+	{
+		syslog(LOG_ERR, "unable to chdir() to  %s", dragonfly_root);
+		exit(EXIT_FAILURE);
+	}
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	syslog(LOG_INFO, "DRAGONFLY_ROOT: %s\n", path);
+	free(path);
 
 	char scripts_dir[PATH_MAX];
 	snprintf(scripts_dir, sizeof(scripts_dir), "%s/scripts", dragonfly_root);
@@ -62,30 +77,32 @@ void run_self_tests(const char *dragonfly_root)
 
 	char log_dir[PATH_MAX];
 	snprintf(log_dir, sizeof(log_dir), "%s/log", dragonfly_root);
-	
-	SELF_TEST0(dragonfly_root);
-	sleep(WAIT_INTERVAL);
+	mkdir(log_dir, 0755);
 
-	SELF_TEST1(dragonfly_root);
-	sleep(WAIT_INTERVAL);
+	//SELF_TEST0(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
 
-	SELF_TEST2(dragonfly_root);
-	sleep (WAIT_INTERVAL);
+	//SELF_TEST1(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
 
-	SELF_TEST3(dragonfly_root);
-	sleep(WAIT_INTERVAL);
+	//SELF_TEST2(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
 
-	SELF_TEST4(dragonfly_root);
-	sleep(WAIT_INTERVAL);
+	//SELF_TEST3(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
+
+	//SELF_TEST4(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
 
 	SELF_TEST5(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
-	SELF_TEST6(dragonfly_root);
-	sleep(WAIT_INTERVAL);
+	//SELF_TEST6(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
 
-	SELF_TEST7(dragonfly_root);
-	sleep(WAIT_INTERVAL);
+
+	//SELF_TEST7(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
 
 	SELF_TEST8(dragonfly_root);
 	sleep(WAIT_INTERVAL);

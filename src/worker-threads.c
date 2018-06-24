@@ -70,7 +70,9 @@ static int g_num_analyzer_threads = 0;
 static int g_num_input_threads = 0;
 static int g_num_output_threads = 0;
 
-static pthread_barrier_t g_barrier;
+#ifdef FORK_PROCESS
+static int g_parent_pid = -1;
+#endif
 
 char *g_redis_host = NULL;
 int g_redis_port = 6379;
@@ -230,7 +232,10 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
 
         if ((len = dragonfly_io_read(flywheel->input, buffer, (_MAX_BUFFER_SIZE_ - 1))) <= 0)
         {
-            fprintf(stderr, "DEBUG-> %s: %i read ERROR\n", __FUNCTION__, __LINE__);
+            syslog(LOG_ERR, "%s: dragonfly_io_read() error", __FUNCTION__);
+#ifdef __DEBUG3__
+            fprintf(stderr, "DEBUG-> %s (%i): read ERROR\n", __FUNCTION__, __LINE__);
+#endif
             return;
         }
         msgqueue_send(flywheel->queue, buffer, len);
@@ -250,8 +255,6 @@ static void *lua_flywheel_thread(void *ptr)
 #ifdef _GNU_SOURCE
     pthread_setname_np(pthread_self(), flywheel->tag);
 #endif
-    pthread_barrier_wait(&g_barrier);
-
     syslog(LOG_NOTICE, "Running %s\n", flywheel->tag);
     while (g_running)
     {
@@ -388,7 +391,6 @@ static void *lua_input_thread(void *ptr)
         exit(EXIT_FAILURE);
     }
 
-    pthread_barrier_wait(&g_barrier);
     syslog(LOG_NOTICE, "Running %s\n", input->tag);
 
     while (g_running)
@@ -447,7 +449,6 @@ static void *lua_output_thread(void *ptr)
 #ifdef _GNU_SOURCE
     pthread_setname_np(pthread_self(), output->tag);
 #endif
-    pthread_barrier_wait(&g_barrier);
     syslog(LOG_NOTICE, "Running %s\n", output->tag);
 
     while (g_running)
@@ -619,7 +620,6 @@ static void *lua_analyzer_thread(void *ptr)
         exit(EXIT_FAILURE);
     }
 
-    pthread_barrier_wait(&g_barrier);
     syslog(LOG_NOTICE, "Running %s\n", analyzer->tag);
 
     while (g_running)
@@ -657,22 +657,8 @@ void destroy_configuration()
 
 void initialize_configuration(const char *dragonfly_root)
 {
-    g_running = 1;
+    umask(0);
     strncpy(g_root_dir, dragonfly_root, PATH_MAX);
-    if (chdir(g_root_dir) != 0)
-    {
-        syslog(LOG_ERR, "unable to chdir() to  %s", g_root_dir);
-        exit(EXIT_FAILURE);
-    }
-    syslog(LOG_INFO, "root dir: %s\n", g_root_dir);
-    char *path = getcwd(NULL, PATH_MAX);
-    if (path == NULL)
-    {
-        syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    syslog(LOG_INFO, "chdir: %s\n", path);
-    free(path);
 
 #ifdef __DEBUG__
     snprintf(g_scripts_dir, PATH_MAX, "%s/%s", dragonfly_root, SCRIPTS_DIR);
@@ -760,6 +746,27 @@ void initialize_configuration(const char *dragonfly_root)
  * ---------------------------------------------------------------------------------------
  */
 
+static void process_drop_privilege()
+{
+    if (setgid(getgid()) < 0)
+    {
+        syslog(LOG_ERR, "setgid: %s", strerror(errno));
+    }
+    struct passwd *pwd = getpwnam(USER_NOBODY);
+    if (pwd && setuid(pwd->pw_uid) != 0)
+    {
+        syslog(LOG_ERR, "setuid(%s): %s", USER_NOBODY, strerror(errno));
+        signal_shutdown(-1);
+    }
+    syslog(LOG_INFO, "dropped privileges: %s\n", USER_NOBODY);
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+
 void shutdown_threads()
 {
     g_running = 0;
@@ -802,8 +809,6 @@ void shutdown_threads()
     }
     destroy_configuration();
 
-    pthread_barrier_destroy(&g_barrier);
-
     g_num_analyzer_threads = 0;
     g_num_input_threads = 0;
     g_num_output_threads = 0;
@@ -818,76 +823,31 @@ void shutdown_threads()
 
 void startup_threads(const char *dragonfly_root)
 {
+    g_running = 1;
     signal(SIGUSR1, signal_log_rotate);
     signal(SIGABRT, signal_abort);
-    pthread_barrier_init(&g_barrier, NULL,
-                         (g_num_analyzer_threads + (g_num_input_threads * 2) + g_num_output_threads + 1));
+    if (chdir(dragonfly_root) != 0)
+    {
+        syslog(LOG_ERR, "unable to chdir() to  %s", g_root_dir);
+        exit(EXIT_FAILURE);
+    }
+    char *path = getcwd(NULL, PATH_MAX);
+    if (path == NULL)
+    {
+        syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    syslog(LOG_INFO, "root dir: %s\n", path);
+    free(path);
+
     initialize_configuration(dragonfly_root);
+
 #ifdef __DEBUG3__
     fprintf(stderr, "%s\n", __FUNCTION__);
 #endif
-    /*
-     * Caution: The path below must be defined relative to chdir (g_root_dir) 
-     *		so that it works if chroot() is in effect. See above.
-     */
     int n = 0;
     memset(g_thread, 0, sizeof(g_thread));
-    for (int i = 0; i < MAX_INPUT_STREAMS; i++)
-    {
-        if (g_input_list[i].uri != NULL)
-        {
-            for (int j = 0; j < MAX_WORKER_THREADS; j++)
-            {
-                g_input_list[i].queue = msgqueue_create(QUEUE_INPUT, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
-                /*
-         * check that file exists with execute permissions
-         */
-                if (pthread_create(&(g_thread[n++]), NULL, lua_input_thread, (void *)&g_input_list[i]) != 0)
-                {
-                    syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
-                    pthread_exit(NULL);
-                }
-            }
-        }
-    }
-    // make a copy
-    memcpy(g_flywheel_list, g_input_list, sizeof(g_flywheel_list));
 
-    for (int i = 0; i < MAX_INPUT_STREAMS; i++)
-    {
-        if (g_flywheel_list[i].uri != NULL)
-        {
-            /*
-         * check that file exists with execute permissions
-         */
-
-            if (pthread_create(&(g_thread[n++]), NULL, lua_flywheel_thread, (void *)&g_flywheel_list[i]) != 0)
-            {
-                syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
-                pthread_exit(NULL);
-            }
-        }
-    }
-
-    for (int i = 0; i < MAX_OUTPUT_STREAMS; i++)
-    {
-        if (g_output_list[i].uri != NULL)
-        {
-            g_output_list[i].queue = msgqueue_create(QUEUE_OUTPUT, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
-            /*
-         * check that file exists with execute permissions
-         */
-            for (int j = 0; j < MAX_WORKER_THREADS; j++)
-            {
-
-                if (pthread_create(&(g_thread[n++]), NULL, lua_output_thread, (void *)&g_output_list[i]) != 0)
-                {
-                    syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
-                    pthread_exit(NULL);
-                }
-            }
-        }
-    }
 #ifdef FORK_PROCESS
     if ((g_parent_pid = fork()) == 0)
     {
@@ -911,16 +871,18 @@ void startup_threads(const char *dragonfly_root)
             }
         }
 #ifdef FORK_PROCESS
-        if (chroot(g_root_dir) != 0)
+        if (0 && chroot(g_root_dir) != 0)
         {
             syslog(LOG_ERR, "unable to chroot() to : %s - %s\n", g_root_dir, strerror(errno));
             exit(EXIT_FAILURE);
         }
-        syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
-        if (g_drop_priv)
+#endif
+        //syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
+        //if (g_drop_priv)
         {
             process_drop_privilege();
         }
+#ifdef FORK_PROCESS
         while (g_running)
         {
             sleep(1);
@@ -934,6 +896,68 @@ void startup_threads(const char *dragonfly_root)
     else
     {
 #endif
+        /*
+     * Caution: The path below must be defined relative to chdir (g_root_dir) 
+     *		so that it works if chroot() is in effect. See above.
+     */
+
+        for (int i = 0; i < MAX_INPUT_STREAMS; i++)
+        {
+            if (g_input_list[i].uri != NULL)
+            {
+                for (int j = 0; j < MAX_WORKER_THREADS; j++)
+                {
+                    g_input_list[i].queue = msgqueue_create(QUEUE_INPUT, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                    /*
+         * check that file exists with execute permissions
+         */
+                    if (pthread_create(&(g_thread[n++]), NULL, lua_input_thread, (void *)&g_input_list[i]) != 0)
+                    {
+                        syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
+                        pthread_exit(NULL);
+                    }
+                }
+            }
+        }
+        // make a copy
+        memcpy(g_flywheel_list, g_input_list, sizeof(g_flywheel_list));
+
+        for (int i = 0; i < MAX_INPUT_STREAMS; i++)
+        {
+            if (g_flywheel_list[i].uri != NULL)
+            {
+                /*
+         * check that file exists with execute permissions
+         */
+
+                if (pthread_create(&(g_thread[n++]), NULL, lua_flywheel_thread, (void *)&g_flywheel_list[i]) != 0)
+                {
+                    syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
+                    pthread_exit(NULL);
+                }
+            }
+        }
+
+        for (int i = 0; i < MAX_OUTPUT_STREAMS; i++)
+        {
+            if (g_output_list[i].uri != NULL)
+            {
+                g_output_list[i].queue = msgqueue_create(QUEUE_OUTPUT, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                /*
+         * check that file exists with execute permissions
+         */
+                for (int j = 0; j < MAX_WORKER_THREADS; j++)
+                {
+
+                    if (pthread_create(&(g_thread[n++]), NULL, lua_output_thread, (void *)&g_output_list[i]) != 0)
+                    {
+                        syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
+                        pthread_exit(NULL);
+                    }
+                }
+            }
+        }
+
         signal(SIGUSR1, signal_log_rotate);
         if (g_drop_priv)
         {

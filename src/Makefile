@@ -3,10 +3,10 @@
 # ------------------------------------------------------------------
 
 CC = gcc
-CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__ 
+CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__  -DFORK_PROCESS
 INCLUDES = -I. -I./io -I./test -I./lib/msgqueue -I./resp -I./lib/lua-cjson -I./lib/lua-hiredis \
            -I/usr/include/lua5.1
-LIBS = -lpthread -lluajit-5.1 -lhiredis -lm -lcurl -lrt
+LIBS = -lpthread -lluajit-5.1 -lhiredis -lm -lcurl -lrt -lz
 LFLAGS = -L.
 
 TFLAGS =
@@ -22,7 +22,8 @@ SRCS = main.c worker-threads.c dragonfly-io.c dragonfly-cmds.c config.c \
 # ------------------------------------------------------------------
 # I/O modules
 # ------------------------------------------------------------------
-SRCS1 = io/io-file.c io/io-pipe.c io/io-tail.c io/io-kafka.c io/io-syslog.c
+SRCS1 = io/io-file.c io/io-pipe.c io/io-tail.c io/io-kafka.c \
+        io/io-syslog.c io/io-zfile.c 
 
 # ------------------------------------------------------------------
 # Responder modules

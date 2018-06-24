@@ -66,14 +66,14 @@ DF_HANDLE *file_open(const char *path, int spec)
                 io_type = DF_IN_FILE_TYPE;
                 if ((fp = fopen(file_path, "r")) == NULL)
                 {
-                        syslog(LOG_ERR, "unable to open: %s - %s\n", path, strerror(errno));
+                        syslog(LOG_ERR, "unable to open: [%s] - %s\n", path, strerror(errno));
                         return NULL;
                 }
         }
         else if ((spec & DF_OUT) == DF_OUT)
         {
 #ifdef __DEBUG3__
-                fprintf(stderr, "%s: %s (DF_OUT)\n", __FUNCTION__, path);
+                fprintf(stderr, "%s: [%s] (DF_OUT)\n", __FUNCTION__, path);
 #endif
                 io_type = DF_OUT_FILE_TYPE;
                 if ((fp = fopen(file_path, "a")) == NULL)

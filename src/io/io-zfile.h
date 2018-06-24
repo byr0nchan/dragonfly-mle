@@ -21,19 +21,17 @@
  *
  */
 
-#ifndef __PARAM_H__
-#define __PARAM_H__
+#ifndef _IO_ZPIPE_H_
+#define _IO_ZPIPE_H_
 
-#define MAX_WORKER_THREADS 1
-#define MAX_ANALYZER_STREAMS 16
-#define MAX_INPUT_STREAMS (MAX_ANALYZER_STREAMS/2)
-#define MAX_OUTPUT_STREAMS (MAX_ANALYZER_STREAMS/2)
-
-#define MAX_RESPONDER_COMMANDS 4
-
-#define MAX_QUEUE_LENGTH 32
-
-#define _MAX_BUFFER_SIZE_ 8192
-
+/*
+ * zfile IO
+ */
+DF_HANDLE *zfile_open(const char *path, int spec);
+int zfile_write_line(DF_HANDLE *dh, char *buffer);
+int zfile_read_line(DF_HANDLE *dh, char *buffer, int max);
+void zfile_flush(DF_HANDLE *dh);
+void zfile_close(DF_HANDLE *dh);
+void zfile_rotate(DF_HANDLE *dh);
 
 #endif

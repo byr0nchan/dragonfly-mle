@@ -52,7 +52,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://test.log\"},\n"
+	"    { tag=\"log\", uri=\"file://test2.log\"},\n"
 	"}\n"
 	"\n";
 
@@ -108,15 +108,7 @@ void SELF_TEST2(const char *dragonfly_root)
 	/*
 	 * generate lua scripts
 	 */
-	assert(chdir(dragonfly_root) == 0);
-	char *path = getcwd(NULL, PATH_MAX);
-	if (path == NULL)
-	{
-		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free(path);
+
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);

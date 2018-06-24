@@ -55,7 +55,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
+	"    { tag=\"log\", uri=\"ipc://test7.ipc\"},\n"
 	"}\n"
 	"\n";
 
@@ -162,17 +162,7 @@ void SELF_TEST7(const char *dragonfly_root)
 	/*
 	 * generate lua scripts
 	 */
-	assert(chdir(dragonfly_root) == 0);
 
-	char *path = getcwd(NULL, PATH_MAX);
-	if (path == NULL)
-	{
-		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
@@ -182,15 +172,13 @@ void SELF_TEST7(const char *dragonfly_root)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
 #endif
-	DF_HANDLE *input = dragonfly_io_open("ipc://output.ipc", DF_IN);
+	DF_HANDLE *input = dragonfly_io_open("ipc://test7.ipc", DF_IN);
 	if (!input)
 	{
 		perror(__FUNCTION__);
 		abort();
 	}
-
 	startup_threads(dragonfly_root);
-
 	pthread_t tinfo;
 	if (pthread_create(&tinfo, NULL, producer_thread, (void *)NULL) != 0)
 	{

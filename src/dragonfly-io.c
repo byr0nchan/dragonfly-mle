@@ -35,6 +35,7 @@
 #include "io-file.h"
 #include "io-tail.h"
 #include "io-pipe.h"
+#include "io-zfile.h"
 #include "io-kafka.h"
 #include "io-syslog.h"
 /*
@@ -56,6 +57,10 @@ DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
         {
                 return ipc_open(((const char *)uri + 6), spec);
         }
+        else if (strncmp("zfile://", uri, 8) == 0)
+        {
+                return zfile_open(((const char *)uri + 8), spec);
+        }
         else if (strncmp("kafka://", uri, 8) == 0)
         {
                 return kafka_open(((const char *)uri + 8), spec);
@@ -67,6 +72,14 @@ DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
         else if (strncmp("syslog://", uri, 9) == 0)
         {
                 return ipc_open(((const char *)uri + 9), spec);
+        }
+        else
+        {
+
+                syslog(LOG_ERR, "%s: invalid file specifier", __FUNCTION__);
+#ifdef __DEBUG3__
+                fprintf(stderr, "%s (%i) invalid file specifier\n", __FUNCTION__, __LINE__);
+#endif
         }
         return NULL;
 }
@@ -89,11 +102,11 @@ int dragonfly_io_write(DF_HANDLE *dh, char *buffer)
         {
                 return file_write_line(dh, buffer);
         }
-       else if (dh->io_type == DF_OUT_KAFKA_TYPE)
+        else if (dh->io_type == DF_OUT_KAFKA_TYPE)
         {
                 return kafka_write_message(dh, buffer);
         }
-       else if (dh->io_type == DF_OUT_SYSLOG_TYPE)
+        else if (dh->io_type == DF_OUT_SYSLOG_TYPE)
         {
                 return syslog_write_message(dh, buffer);
         }
@@ -123,13 +136,16 @@ int dragonfly_io_read(DF_HANDLE *dh, char *buffer, int len)
         {
                 return file_read_line(dh, buffer, len);
         }
+        else if (dh->io_type == DF_IN_ZFILE_TYPE)
+        {
+                return zfile_read_line(dh, buffer, len);
+        }
         else if (dh->io_type == DF_IN_KAFKA_TYPE)
         {
                 return kafka_read_message(dh, buffer, len);
         }
         return -1;
 }
-
 
 /*
  * ---------------------------------------------------------------------------------------

@@ -55,7 +55,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
+	"    { tag=\"log\", uri=\"ipc://test6.ipc\"},\n"
 	"}\n"
 	"\n";
 
@@ -122,7 +122,6 @@ static void *writer_thread(void *ptr)
 			mod++;
 		}
 		msg[sizeof(msg) - 1] = '\0';
-		msg[sizeof(msg) - 2] = '\n';
 		if (dragonfly_io_write(pump, msg) < 0)
 		{
 			fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
@@ -131,6 +130,7 @@ static void *writer_thread(void *ptr)
 		}
 	}
 	dragonfly_io_close(pump);
+fprintf (stderr,"%s: %i\n",__FUNCTION__, __LINE__);
 	return (void *)NULL;
 }
 /*
@@ -149,16 +149,7 @@ void SELF_TEST6(const char *dragonfly_root)
 	/*
 	 * generate lua scripts
 	 */
-	assert(chdir(dragonfly_root) == 0);
-	char *path = getcwd(NULL, PATH_MAX);
-	if (path == NULL)
-	{
-		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
 
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
@@ -168,15 +159,12 @@ void SELF_TEST6(const char *dragonfly_root)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
 #endif
-	DF_HANDLE *input = dragonfly_io_open("ipc://output.ipc", DF_IN);
+	DF_HANDLE *input = dragonfly_io_open("ipc://test6.ipc", DF_IN);
 	if (!input)
 	{
 		perror(__FUNCTION__);
 		abort();
 	}
-
-	startup_threads(dragonfly_root);
-	sleep(1);
 
 	pthread_t tinfo;
 	if (pthread_create(&tinfo, NULL, writer_thread, (void *)NULL) != 0)
@@ -185,6 +173,8 @@ void SELF_TEST6(const char *dragonfly_root)
 		abort();
 	}
 
+	startup_threads(dragonfly_root);
+	sleep(1);
 	/*
 	 * write messages walking the alphabet
 	 */
@@ -198,7 +188,11 @@ void SELF_TEST6(const char *dragonfly_root)
 			perror(__FUNCTION__);
 			abort();
 		}
-		if ((i > 0) && (i % QUANTUM) == 0)
+		else if (len ==0)
+		{
+			fprintf (stderr,"%s: %i file closed \n",__FUNCTION__, __LINE__);	
+		}
+		else if ((i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();
 			double elapsed_time = ((double)(mark_time - last_time)) / CLOCKS_PER_SEC; // in seconds
@@ -207,6 +201,7 @@ void SELF_TEST6(const char *dragonfly_root)
 			last_time = mark_time;
 		}
 	}
+fprintf (stderr,"%s: %i\n",__FUNCTION__, __LINE__);
 	pthread_join(tinfo, NULL);
 	shutdown_threads();
 	dragonfly_io_close(input);
