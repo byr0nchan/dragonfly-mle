@@ -699,7 +699,7 @@ static void json_append_data(lua_State *l, json_config_t *cfg,
     }
 }
 
-static int json_encode(lua_State *l)
+int json_encode(lua_State *l)
 {
     json_config_t *cfg = json_fetch_config(l);
     strbuf_t local_encode_buf;
@@ -1249,7 +1249,7 @@ static void json_process_value(lua_State *l, json_parse_t *json,
     }
 }
 
-static int json_decode(lua_State *l)
+int json_decode(lua_State *l)
 {
     json_parse_t json;
     json_token_t token;
