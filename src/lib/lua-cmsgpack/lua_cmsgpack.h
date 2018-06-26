@@ -1,3 +1,4 @@
+
 /*
  * 
  * Copyright (C) 2017-2018 CounterFlow AI, Inc.
@@ -16,13 +17,12 @@
  *
  */
 
-#ifndef _LUA_CJSON_
-#define _LUA_CJSON_
+#ifndef _LUA_MSGPACK_
+#define _LUA_MSGPACK_
 
-LUALIB_API int luaopen_cjson(lua_State * L);
-LUALIB_API int luaopen_cjson_safe(lua_State * L);
-int json_decode(lua_State *l);
-int json_encode(lua_State *l);
+int luaopen_cmsgpack(lua_State *L);
+int mp_pack(lua_State *L) ;
+int mp_unpack(lua_State *L);
+int mp_unpack_one(lua_State *L) ;
 
 #endif
-

@@ -22,6 +22,7 @@
 
 #include "msgqueue.h"
 
+#define QUANTUM	500000
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -51,7 +52,6 @@ queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 
 	/* create the message queue */
 	q->mq = mq_open(q->queue_name, O_CREAT | O_CLOEXEC | O_RDWR, 0644, &q->attr);
-	//q->mq = mq_open(q->queue_name, O_CREAT | O_CLOEXEC | O_RDWR);
 	if (q->mq < 0)
 	{
 		syslog(LOG_ERR, "mq_open() error: %s", strerror(errno));
@@ -71,7 +71,7 @@ void msgqueue_cancel(queue_t *q)
 	if (!q || q->cancel)
 		return;
 	q->cancel = 1;
-	struct timespec tmo = {0, 50000000};
+	struct timespec tmo = {0, QUANTUM };
 	nanosleep(&tmo, NULL);
 }
 
@@ -84,9 +84,19 @@ void msgqueue_destroy(queue_t *q)
 {
 	if (!q)
 		return;
+	int n = 0;
+	struct timespec tm;
+	char buffer[4096];
+	do
+	{
+		clock_gettime(CLOCK_REALTIME, &tm);
+		tm.tv_nsec += QUANTUM;
+		n = mq_timedreceive(q->mq, buffer, sizeof(buffer), NULL, &tm);
+	} while (n > 0);
+
 	mq_close(q->mq);
 	// TODO:  need to drain the queue
-	mq_unlink(q->queue_name);
+	//mq_unlink(q->queue_name);
 	free(q->queue_name);
 	free(q);
 	q = NULL;
@@ -99,8 +109,10 @@ void msgqueue_destroy(queue_t *q)
  */
 int msgqueue_send(queue_t *q, const char *buffer, int length)
 {
+
 	if (!q || q->cancel)
 		return -1;
+	
 	int n = 0;
 	struct timespec tm;
 
@@ -112,7 +124,7 @@ int msgqueue_send(queue_t *q, const char *buffer, int length)
 	do
 	{
 		clock_gettime(CLOCK_REALTIME, &tm);
-		tm.tv_nsec += 50000;
+		tm.tv_nsec += QUANTUM;
 
 		n = mq_timedsend(q->mq, buffer, length, 1, &tm);
 		if (n < 0)
@@ -157,7 +169,7 @@ int msgqueue_recv(queue_t *q, char *buffer, int max_size)
 	do
 	{
 		clock_gettime(CLOCK_REALTIME, &tm);
-		tm.tv_nsec += 50000;
+		tm.tv_nsec += QUANTUM;
 		n = mq_timedreceive(q->mq, buffer, max_size, NULL, &tm);
 		if (n < 0)
 		{

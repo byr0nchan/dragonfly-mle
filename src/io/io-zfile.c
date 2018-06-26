@@ -66,11 +66,14 @@ DF_HANDLE *zfile_open(const char *ipc_path, int spec)
         }
         if ((spec & DF_IN) == DF_IN)
         {
-                unlink(zfile_path);
-                if (mkfifo(zfile_path, 0666) == -1)
+                //unlink(zfile_path);
+                if (access(zfile_path, W_OK) < 0)
                 {
-                        syslog(LOG_ERR, "unable to mkfifo(%s): %s\n", zfile_path, strerror(errno));
-                        return NULL;
+                        if (mkfifo(zfile_path, 0666) == -1)
+                        {
+                                syslog(LOG_ERR, "unable to mkfifo(%s): %s\n", zfile_path, strerror(errno));
+                                return NULL;
+                        }
                 }
                 if ((zfp = gzopen(zfile_path, "r")) == NULL)
                 {
@@ -120,15 +123,16 @@ int zfile_read_line(DF_HANDLE *dh, char *buffer, int len)
 {
         if (gzgets(dh->zfp, buffer, len) == Z_NULL)
         {
-                if (gzeof (dh->zfp)) return 0;
+                if (gzeof(dh->zfp))
+                        return 0;
                 int error;
                 syslog(LOG_ERR, "%s: error -- %s", __FUNCTION__, gzerror(dh->zfp, &error));
                 return -1;
         }
-        int i =  strnlen(buffer, len);
+        int i = strnlen(buffer, len);
         // remove '\n'
-        buffer[i-1] = '\0';
-        return (i-1);
+        buffer[i - 1] = '\0';
+        return (i - 1);
 }
 
 /*

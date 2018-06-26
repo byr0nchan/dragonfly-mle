@@ -46,6 +46,8 @@
 
 #include "lua-hiredis.h"
 #include "lua-cjson.h"
+#include "lua_cmsgpack.h"
+
 #include "mqueue.h"
 
 #include "worker-threads.h"
@@ -153,12 +155,21 @@ int analyze_event(lua_State *L)
     }
     size_t len = 0;
     const char *name = luaL_checkstring(L, 1);
-    const char *message = lua_tolstring(L, 2, &len);
+    //const char *message = lua_tolstring(L, 2, &len);
     for (int i = 0; g_analyzer_list[i].tag != NULL; i++)
     {
         if (strcasecmp(name, g_analyzer_list[i].tag) == 0)
         {
-            msgqueue_send(g_analyzer_list[i].queue, message, len);
+            mp_pack(L);
+            //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));
+            const char *msgpack = lua_tolstring(L, 3, &len);
+            //fprintf(stderr, "%s:%i -----%s(%i) => %s\n", __FUNCTION__, __LINE__, packed, (int)len, name);
+            if (msgqueue_send(g_analyzer_list[i].queue, msgpack, len) < 0)
+            {
+                syslog(LOG_ERR, "%s:  msgqueue_send() error - %i", __FUNCTION__, (int)len);
+            }
+            lua_pop(L, 1);
+            //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));
             return 0;
         }
     }
@@ -168,6 +179,8 @@ int analyze_event(lua_State *L)
 /*
  * ---------------------------------------------------------------------------------------
  *
+ *     * 
+     *  https://github.com/richardhundt/lua-marshal
  * ---------------------------------------------------------------------------------------
  */
 int output_event(lua_State *L)
@@ -342,6 +355,11 @@ static void *lua_input_thread(void *ptr)
         lua_pop(L, 1);
         pthread_exit(NULL);
     }
+    /*
+     * Load the lua-cmsgpack library:
+     * 
+     */
+    luaopen_cmsgpack(L);
 
     /*
      * Load the lua-cjson library:
@@ -350,7 +368,7 @@ static void *lua_input_thread(void *ptr)
      * 
      */
     luaopen_cjson(L);
-    luaopen_cjson_safe(L);
+    //luaopen_cjson_safe(L);
     if (g_verbose)
     {
         syslog(LOG_INFO, "Loaded lua-cjson library");
@@ -390,7 +408,7 @@ static void *lua_input_thread(void *ptr)
         lua_pop(L, 1);
         exit(EXIT_FAILURE);
     }
-
+    lua_pop(L, 1);
     syslog(LOG_NOTICE, "Running %s\n", input->tag);
 
     while (g_running)
@@ -482,19 +500,28 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
 
     while (g_running)
     {
+        //fprintf(stderr, "%s:%i msgqueue_recv()\n", __FUNCTION__, __LINE__);
         if ((n = msgqueue_recv(analyzer->queue, buffer, _MAX_BUFFER_SIZE_)) < 0)
         {
             return;
         }
-
-        lua_getglobal(L, "loop");
+        //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));
         lua_pushlstring(L, buffer, n);
+        lua_insert (L,1);
+        //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));
+        mp_unpack(L);
+        lua_remove(L, 1);
+        //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));     
+        lua_getglobal(L, "loop");
+        lua_insert (L, -2);
         if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
         {
             syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
             lua_pop(L, 1);
             exit(EXIT_FAILURE);
         }
+        lua_pop(L, 1);
+        //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));  
     }
 }
 
@@ -551,13 +578,20 @@ static void *lua_analyzer_thread(void *ptr)
     syslog(LOG_INFO, "Loaded %s", lua_script);
 
     /*
+     * Load the lua-marshal library:
+     * 
+     *  https://github.com/richardhundt/lua-marshal
+     * 
+     */
+    luaopen_cmsgpack(L);
+    /*
      * Load the lua-cjson library:
      * 
      *  https://github.com/mpx/lua-cjson
      * 
      */
     luaopen_cjson(L);
-    luaopen_cjson_safe(L);
+    //luaopen_cjson_safe(L);
     if (g_verbose)
     {
         syslog(LOG_INFO, "Loaded lua-cjson library");
@@ -591,9 +625,6 @@ static void *lua_analyzer_thread(void *ptr)
             if (responder_setup(g_responder_list[i].tag, g_responder_list[i].param) < 0)
             {
                 syslog(LOG_ERR, "responder_setup %s failed", g_responder_list[i].tag);
-#ifdef __DEBUG3__
-                fprintf(stderr, "responder_setup %s failed\n", g_responder_list[i].tag);
-#endif
                 signal_shutdown(-1);
             }
         }
@@ -616,9 +647,9 @@ static void *lua_analyzer_thread(void *ptr)
     {
         syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
         lua_pop(L, 1);
-        //signal_shutdown(-1);
         exit(EXIT_FAILURE);
     }
+    lua_pop(L, 1);
 
     syslog(LOG_NOTICE, "Running %s\n", analyzer->tag);
 
@@ -878,10 +909,7 @@ void startup_threads(const char *dragonfly_root)
         }
 #endif
         //syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
-        //if (g_drop_priv)
-        {
-            process_drop_privilege();
-        }
+
 #ifdef FORK_PROCESS
         while (g_running)
         {
