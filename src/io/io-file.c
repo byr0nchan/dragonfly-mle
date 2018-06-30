@@ -72,16 +72,35 @@ DF_HANDLE *file_open(const char *path, int spec)
         }
         else if ((spec & DF_OUT) == DF_OUT)
         {
+                char mode[8];
+          
+                int last = strnlen(file_path, PATH_MAX);
+                if (last > 0)
+                        last--;
+                if (file_path[last] == '<')
+                {
+                        file_path[last] = '\0';
+                        strcpy (mode, "w+");
+                }
+                else if (file_path[last] == '>')
+                {
+                        file_path[last] = '\0';
+                        strcpy(mode,"a+");
+                }
+                else
+                {
+                        strcpy(mode,"a+");
+                }
 #ifdef __DEBUG3__
                 fprintf(stderr, "%s: [%s] (DF_OUT)\n", __FUNCTION__, path);
 #endif
                 io_type = DF_OUT_FILE_TYPE;
-                if ((fp = fopen(file_path, "a")) == NULL)
+                if ((fp = fopen(file_path, mode)) == NULL)
                 {
                         syslog(LOG_ERR, "unable to open: %s - %s\n", path, strerror(errno));
                         return NULL;
                 }
-                setlinebuf (fp);
+                setvbuf(fp, NULL, _IOLBF, 0); 
         }
         else
         {
@@ -136,7 +155,7 @@ int file_rotate(DF_HANDLE *dh)
                 if ((fp = fopen(dh->path, "a")) != NULL)
                 {
                         dh->fp = fp;
-                        setlinebuf (fp);
+                        setlinebuf(fp);
                         status = 0;
                 }
         }
@@ -173,7 +192,7 @@ int file_write_line(DF_HANDLE *dh, char *buffer)
         if (n < 0)
         {
 #ifdef __DEBUG__
-                fprintf (stderr,"%s: line %d: %s\n",__FUNCTION__, __LINE__, strerror(errno));
+                fprintf(stderr, "%s: line %d: %s\n", __FUNCTION__, __LINE__, strerror(errno));
 #endif
                 syslog(LOG_ERR, "write error: %s", strerror(errno));
                 if (n == 0 || n == EIO)
@@ -192,6 +211,8 @@ int file_write_line(DF_HANDLE *dh, char *buffer)
  */
 void file_close(DF_HANDLE *dh)
 {
+        fflush(dh->fp);
+        int fsync(int fd);
         fclose(dh->fp);
         dh->fp = NULL;
 }

@@ -40,6 +40,13 @@
 
 #define QUEUE_INPUT "/input_queue"
 
+typedef struct _MLE_STATS_
+{
+    int input;
+    int analysis;
+    int output;
+} MLE_STATS;
+
 typedef struct _INPUT_CONFIG_
 {
     char *tag;

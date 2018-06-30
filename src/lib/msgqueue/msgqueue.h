@@ -15,6 +15,7 @@ typedef struct
 	struct mq_attr attr;
 } queue_t;
 
+void msgqueue_reset(const char *queue_name, int msg_max, long queue_max);
 queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max);
 void msgqueue_cancel(queue_t *q);
 int msgqueue_send(queue_t *q, const char *buffer, int length);

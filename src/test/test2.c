@@ -59,18 +59,19 @@ static const char *CONFIG_LUA =
 static const char *INPUT_LUA =
 	"function setup()\n"
 	"end\n"
-	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   -- print (msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 const char *ANALYZER_LUA =
 	"function setup()\n"
 	"  conn = assert(hiredis.connect())\n"
-	"  assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
 	"end\n"
-	"function loop (msg)\n"
-	"  assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
+	"function loop (tbl)\n"
+	"   -- print (tbl.msg)\n"
+	"   assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
 	"end\n\n";
 
 /*
@@ -131,20 +132,24 @@ void SELF_TEST2(const char *dragonfly_root)
 	sleep(1);
 
 	long mod = 0;
-	for (long i = 0; i < MAX_TEST2_MESSAGES; i++)
+	char buffer[1024];
+	for (unsigned long i = 0; i < MAX_TEST2_MESSAGES; i++)
 	{
-		char msg[128];
+		char msg [64];
 		for (int j = 0; j < (sizeof(msg) - 1); j++)
 		{
 			msg[j] = 'A' + (mod % 48);
+			if (msg[j]=='\\') msg[j]='*';
 			mod++;
 		}
+		msg[sizeof(msg) - 1] = '\0';
+		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg);
 		if (i && (i % 1000) == 0)
 		{
 			fprintf(stderr, "\t%lu redis pings\n", i);
 		}
-		msg[sizeof(msg) - 1] = '\0';
-		dragonfly_io_write(pump, msg);
+
+		dragonfly_io_write(pump, buffer);
 	}
 	sleep(2);
 	shutdown_threads();

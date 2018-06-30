@@ -53,6 +53,7 @@
 int g_chroot = 0;
 int g_verbose = 0;
 int g_drop_priv = 0;
+int g_flush_queue = 0;
 
 uint64_t g_msgSubscribed = 0;
 uint64_t g_msgReceived = 0;
@@ -83,13 +84,18 @@ int main(int argc, char **argv)
 	memset(g_suricata_command_path, 0, sizeof(g_suricata_command_path));
 
 	int option = 0;
-	while ((option = getopt(argc, argv, "cpr:s:v")) != -1)
+	while ((option = getopt(argc, argv, "cfpr:v")) != -1)
 	{
 		switch (option)
 		{
 			/* chroot */
 		case 'c':
 			g_chroot = 1;
+			break;
+
+			/* flush message queues */
+		case 'f':
+			g_flush_queue = 1;
 			break;
 
 			/* drop privilege */

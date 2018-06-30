@@ -42,8 +42,9 @@
 
 #include "test.h"
 
-#define MAX_TEST7_MESSAGES 10000
-#define QUANTUM (MAX_TEST7_MESSAGES/10)
+#define MAX_TEST7_MESSAGES 100000
+#define QUANTUM (MAX_TEST7_MESSAGES / 1000)
+static int g_running = 1;
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -64,14 +65,16 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   -- print (msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
-	"function loop (msg)\n"
-	"   output_event (\"log\", msg)\n"
+	"function loop (tbl)\n"
+	"   output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -101,7 +104,7 @@ static void *producer_thread(void *ptr)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "writer");
 #endif
-	DF_HANDLE *pump = dragonfly_io_open("file://input.txt", DF_OUT);
+	DF_HANDLE *pump = dragonfly_io_open("file://input.txt<", DF_OUT);
 	if (!pump)
 	{
 		fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
@@ -111,28 +114,17 @@ static void *producer_thread(void *ptr)
 	/*
 	 * write messages walking the alphabet
 	 */
-	int midway = (MAX_TEST7_MESSAGES / 2);
+	int truncate_record = (MAX_TEST7_MESSAGES/100);
+	char buffer[1024];
 	int mod = 0;
+	int sleep_time = 50;
 	for (unsigned long i = 0; i < MAX_TEST7_MESSAGES; i++)
 	{
-		char msg[128];
-		for (int j = 0; j < (sizeof(msg) - 1); j++)
+		if (i == truncate_record)
 		{
-			msg[j] = 'A' + (mod % 48);
-			mod++;
-		}
-		msg[sizeof(msg) - 1] = '\0';
-		msg[sizeof(msg) - 2] = '\n';
-		if (dragonfly_io_write(pump, msg) < 0)
-		{
-			fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
-			perror(__FUNCTION__);
-			abort();
-		}
-		if (i == midway)
-		{
-			fprintf(stderr, "Truncating file input.txt\n");
 			dragonfly_io_close(pump);
+			unlink ("log/input.txt");
+			fprintf(stderr, "Truncating file input.txt\n");
 			pump = dragonfly_io_open("file://input.txt", DF_OUT);
 			if (!pump)
 			{
@@ -140,9 +132,29 @@ static void *producer_thread(void *ptr)
 				perror(__FUNCTION__);
 				abort();
 			}
+			sleep_time = 1;
 		}
+		char msg[128];
+		for (int j = 0; j < (sizeof(msg) - 1); j++)
+		{
+			msg[j] = 'A' + (mod % 48);
+			if (msg[j] == '\\')
+				msg[j] = ' ';
+			mod++;
+		}
+		msg[sizeof(msg) - 1] = '\0';
+		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg);
+		if (dragonfly_io_write(pump, buffer) < 0)
+		{
+			fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
+			perror(__FUNCTION__);
+			abort();
+		}
+		usleep(sleep_time);
 	}
+	g_running = 0;
 	dragonfly_io_close(pump);
+	sleep (1);
 	return (void *)NULL;
 }
 /*
@@ -189,9 +201,10 @@ void SELF_TEST7(const char *dragonfly_root)
 	/*
 	 * read messages
 	 */
+	unsigned long i = 0;
 	char buffer[4096];
 	clock_t last_time = clock();
-	for (unsigned long i = 0; i < MAX_TEST7_MESSAGES; i++)
+	while (g_running)
 	{
 		int len = dragonfly_io_read(input, buffer, (sizeof(buffer) - 1));
 		if (len < 0)
@@ -199,7 +212,7 @@ void SELF_TEST7(const char *dragonfly_root)
 			perror(__FUNCTION__);
 			abort();
 		}
-		if ((i > 0) && (i % QUANTUM) == 0)
+		if ((++i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();
 			double elapsed_time = ((double)(mark_time - last_time)) / CLOCKS_PER_SEC; // in seconds
@@ -208,11 +221,8 @@ void SELF_TEST7(const char *dragonfly_root)
 			last_time = mark_time;
 		}
 	}
-
 	pthread_join(tinfo, NULL);
-	sleep(2);
 	shutdown_threads();
-	sleep(2);
 	dragonfly_io_close(input);
 	closelog();
 

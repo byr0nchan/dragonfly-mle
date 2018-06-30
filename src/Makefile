@@ -3,7 +3,8 @@
 # ------------------------------------------------------------------
 
 CC = gcc
-CFLAGS = -O2 -Wall -march=native -Werror -D__DEBUG__  
+CFLAGS = -O2 -Wall -march=native -Werror 
+# -D__DEBUG__  
 # -DFORK_PROCESS
 INCLUDES = -I. -I./io -I./test -I./lib/msgqueue -I./resp -I./lib/lua-cjson \
            -I./lib/lua-hiredis -Ilib/lua-cmsgpack

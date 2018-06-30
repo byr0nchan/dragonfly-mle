@@ -61,7 +61,8 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
@@ -94,9 +95,8 @@ static const char *ANALYZER_LUA =
 	"		error(filename .. \": \" .. err)\n"
 	"	end\n"
 	"end\n"
-	"function loop (msg)\n"
-	"\n"
-	"\n"
+	"function loop (tbl)\n"
+	"   output_event (\"log\", tbl.msg)\n"
 	"end\n";
 
 /*
@@ -155,14 +155,18 @@ void SELF_TEST8(const char *dragonfly_root)
 
 	sleep(1);
 	int mod = 0;
-	char msg[256];
-	for (int j = 0; j < (sizeof(msg) - 1); j++)
+	char msg[64];
+	char buffer[1024];
+	for (unsigned int j = 0; j < (sizeof(msg) - 1); j++)
 	{
 		msg[j] = 'A' + (mod % 48);
+		if (msg[j] == '\\')
+			msg[j] = ' ';
 		mod++;
 	}
 	msg[sizeof(msg) - 1] = '\0';
-	dragonfly_io_write(pump, msg);
+	snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", (unsigned long) 1, msg);
+	dragonfly_io_write(pump, buffer);
 
 	sleep(2);
 	shutdown_threads();

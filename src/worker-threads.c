@@ -60,6 +60,7 @@
 extern int g_verbose;
 extern int g_chroot;
 extern int g_drop_priv;
+extern int g_flush_queue;
 
 static char g_root_dir[PATH_MAX];
 static char g_log_dir[PATH_MAX];
@@ -81,6 +82,7 @@ int g_redis_port = 6379;
 
 #define ROTATE_MESSAGE "+rotate+"
 
+static MLE_STATS g_stats;
 static INPUT_CONFIG g_input_list[MAX_INPUT_STREAMS];
 static INPUT_CONFIG g_flywheel_list[MAX_INPUT_STREAMS];
 static OUTPUT_CONFIG g_output_list[MAX_OUTPUT_STREAMS];
@@ -155,21 +157,17 @@ int analyze_event(lua_State *L)
     }
     size_t len = 0;
     const char *name = luaL_checkstring(L, 1);
-    //const char *message = lua_tolstring(L, 2, &len);
     for (int i = 0; g_analyzer_list[i].tag != NULL; i++)
     {
         if (strcasecmp(name, g_analyzer_list[i].tag) == 0)
         {
             mp_pack(L);
-            //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));
             const char *msgpack = lua_tolstring(L, 3, &len);
-            //fprintf(stderr, "%s:%i -----%s(%i) => %s\n", __FUNCTION__, __LINE__, packed, (int)len, name);
             if (msgqueue_send(g_analyzer_list[i].queue, msgpack, len) < 0)
             {
                 syslog(LOG_ERR, "%s:  msgqueue_send() error - %i", __FUNCTION__, (int)len);
             }
             lua_pop(L, 1);
-            //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));
             return 0;
         }
     }
@@ -179,8 +177,8 @@ int analyze_event(lua_State *L)
 /*
  * ---------------------------------------------------------------------------------------
  *
- *     * 
-     *  https://github.com/richardhundt/lua-marshal
+ * 
+ * 
  * ---------------------------------------------------------------------------------------
  */
 int output_event(lua_State *L)
@@ -310,6 +308,7 @@ void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
             lua_pop(L, 1);
             exit(EXIT_FAILURE);
         }
+        g_stats.input++;
     }
 }
 
@@ -336,7 +335,6 @@ static void *lua_input_thread(void *ptr)
      * Set thread name to the file name of the lua script
      */
     lua_State *L = luaL_newstate();
-
     luaL_openlibs(L);
 
     /* set local LUA paths */
@@ -368,7 +366,6 @@ static void *lua_input_thread(void *ptr)
      * 
      */
     luaopen_cjson(L);
-    //luaopen_cjson_safe(L);
     if (g_verbose)
     {
         syslog(LOG_INFO, "Loaded lua-cjson library");
@@ -450,6 +447,7 @@ void lua_output_loop(OUTPUT_CONFIG *output)
                 fprintf(stderr, "%s: output error\n", __FUNCTION__);
                 return;
             }
+            g_stats.output++;
         }
     }
 }
@@ -500,20 +498,19 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
 
     while (g_running)
     {
-        //fprintf(stderr, "%s:%i msgqueue_recv()\n", __FUNCTION__, __LINE__);
+
         if ((n = msgqueue_recv(analyzer->queue, buffer, _MAX_BUFFER_SIZE_)) < 0)
         {
             return;
         }
-        //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));
+
         lua_pushlstring(L, buffer, n);
-        lua_insert (L,1);
-        //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));
+        lua_insert(L, 1);
         mp_unpack(L);
         lua_remove(L, 1);
-        //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));     
+
         lua_getglobal(L, "loop");
-        lua_insert (L, -2);
+        lua_insert(L, -2);
         if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
         {
             syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
@@ -521,7 +518,8 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
             exit(EXIT_FAILURE);
         }
         lua_pop(L, 1);
-        //fprintf(stderr, "%s:%i -----gettop => %i\n", __FUNCTION__, __LINE__, lua_gettop(L));  
+
+        g_stats.analysis++;
     }
 }
 
@@ -591,7 +589,6 @@ static void *lua_analyzer_thread(void *ptr)
      * 
      */
     luaopen_cjson(L);
-    //luaopen_cjson_safe(L);
     if (g_verbose)
     {
         syslog(LOG_INFO, "Loaded lua-cjson library");
@@ -690,6 +687,7 @@ void initialize_configuration(const char *dragonfly_root)
 {
     umask(0);
     strncpy(g_root_dir, dragonfly_root, PATH_MAX);
+    memset (&g_stats, 0, sizeof (g_stats));
 
 #ifdef __DEBUG__
     snprintf(g_scripts_dir, PATH_MAX, "%s/%s", dragonfly_root, SCRIPTS_DIR);
@@ -801,9 +799,6 @@ static void process_drop_privilege()
 void shutdown_threads()
 {
     g_running = 0;
-
-    sleep(1);
-
     int n = 0;
     while (g_thread[n])
     {
@@ -814,12 +809,24 @@ void shutdown_threads()
         pthread_join(g_thread[n++], NULL);
     }
 
+    for (int i = 0; g_input_list[i].queue != NULL; i++)
+    {
+        msgqueue_cancel(g_input_list[i].queue);
+    }
+    for (int i = 0; g_analyzer_list[i].queue != NULL; i++)
+    {
+        msgqueue_cancel(g_analyzer_list[i].queue);
+    }
+    for (int i = 0; g_output_list[i].queue != NULL; i++)
+    {
+        msgqueue_cancel(g_output_list[i].queue);
+    }
+    sleep (1);
     for (int i = 0; g_input_list[i].uri != NULL; i++)
     {
 #ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_input_list[i].script);
 #endif
-        msgqueue_cancel(g_input_list[i].queue);
         msgqueue_destroy(g_input_list[i].queue);
     }
     for (int i = 0; g_analyzer_list[i].script != NULL; i++)
@@ -827,7 +834,6 @@ void shutdown_threads()
 #ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_analyzer_list[i].script);
 #endif
-        msgqueue_cancel(g_analyzer_list[i].queue);
         msgqueue_destroy(g_analyzer_list[i].queue);
     }
     for (int i = 0; g_output_list[i].queue != NULL; i++)
@@ -835,7 +841,6 @@ void shutdown_threads()
 #ifdef __DEBUG3__
         fprintf(stderr, "%s: waiting on %s\n", __FUNCTION__, g_analyzer_list[i].script);
 #endif
-        msgqueue_cancel(g_output_list[i].queue);
         msgqueue_destroy(g_output_list[i].queue);
     }
     destroy_configuration();
@@ -887,10 +892,16 @@ void startup_threads(const char *dragonfly_root)
         {
             if (g_analyzer_list[i].script != NULL)
             {
-                g_analyzer_list[i].queue = msgqueue_create(QUEUE_ANALYZER, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                char analyzer_name[1024];
+                snprintf(analyzer_name, sizeof(analyzer_name), "%s-%d", QUEUE_ANALYZER, i);
+                if (g_flush_queue)
+                {
+                    msgqueue_reset(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                }
+                g_analyzer_list[i].queue = msgqueue_create(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
                 /*
-         * check that file exists with execute permissions
-         */
+                 * check that file exists with execute permissions
+                 */
                 for (int j = 0; j < MAX_WORKER_THREADS; j++)
                 {
                     if (pthread_create(&(g_thread[n++]), NULL, lua_analyzer_thread, (void *)&g_analyzer_list[i]) != 0)
@@ -935,7 +946,13 @@ void startup_threads(const char *dragonfly_root)
             {
                 for (int j = 0; j < MAX_WORKER_THREADS; j++)
                 {
-                    g_input_list[i].queue = msgqueue_create(QUEUE_INPUT, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                    char input_name[1024];
+                    snprintf(input_name, sizeof(input_name), "%s-%d", QUEUE_INPUT, i);
+                    if (g_flush_queue)
+                    {
+                        msgqueue_reset(input_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                    }
+                    g_input_list[i].queue = msgqueue_create(input_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
                     /*
          * check that file exists with execute permissions
          */
@@ -970,7 +987,13 @@ void startup_threads(const char *dragonfly_root)
         {
             if (g_output_list[i].uri != NULL)
             {
-                g_output_list[i].queue = msgqueue_create(QUEUE_OUTPUT, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                char output_name[1024];
+                snprintf(output_name, sizeof(output_name), "%s-%d", QUEUE_OUTPUT, i);
+                if (g_flush_queue)
+                {
+                    msgqueue_reset(output_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
+                }
+                g_output_list[i].queue = msgqueue_create(output_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
                 /*
          * check that file exists with execute permissions
          */

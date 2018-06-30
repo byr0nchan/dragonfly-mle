@@ -43,11 +43,12 @@
 #include "test.h"
 
 #define MAX_TEST6_MESSAGES 100000
-#define QUANTUM (MAX_TEST6_MESSAGES/10)
+#define QUANTUM (MAX_TEST6_MESSAGES / 10)
+#define INPUT_FILE "input.txt"
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"tail://input.txt\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"tail://input.txt<\", script=\"input.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -64,14 +65,15 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
-	"function loop (msg)\n"
-	"   output_event (\"log\", msg)\n"
+	"function loop (tbl)\n"
+	"   output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -101,8 +103,9 @@ static void *writer_thread(void *ptr)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "writer");
 #endif
-
-	DF_HANDLE *pump = dragonfly_io_open("file://input.txt", DF_OUT);
+	char path[PATH_MAX];
+	snprintf(path, sizeof(path), "file://%s<", INPUT_FILE);
+	DF_HANDLE *pump = dragonfly_io_open(path, DF_OUT);
 	if (!pump)
 	{
 		fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
@@ -113,24 +116,30 @@ static void *writer_thread(void *ptr)
 	 * write messages walking the alphabet
 	 */
 	int mod = 0;
-	for (unsigned long i = 0; i < MAX_TEST6_MESSAGES; i++)
+	char buffer[1024];
+	unsigned long i = 0;
+	for (i = 0; i < MAX_TEST6_MESSAGES; i++)
 	{
 		char msg[128];
 		for (int j = 0; j < (sizeof(msg) - 1); j++)
 		{
 			msg[j] = 'A' + (mod % 48);
+			if (msg[j] == '\\')
+				msg[j] = ' ';
 			mod++;
 		}
 		msg[sizeof(msg) - 1] = '\0';
-		if (dragonfly_io_write(pump, msg) < 0)
+		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg);
+		if (dragonfly_io_write(pump, buffer) < 0)
 		{
 			fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
 			perror(__FUNCTION__);
 			abort();
 		}
+		usleep(10);
 	}
 	dragonfly_io_close(pump);
-fprintf (stderr,"%s: %i\n",__FUNCTION__, __LINE__);
+	//fprintf(stderr, "%s: %lu records written\n", __FILE__, i);
 	return (void *)NULL;
 }
 /*
@@ -172,9 +181,7 @@ void SELF_TEST6(const char *dragonfly_root)
 		perror(__FUNCTION__);
 		abort();
 	}
-
 	startup_threads(dragonfly_root);
-	sleep(1);
 	/*
 	 * write messages walking the alphabet
 	 */
@@ -188,29 +195,31 @@ void SELF_TEST6(const char *dragonfly_root)
 			perror(__FUNCTION__);
 			abort();
 		}
-		else if (len ==0)
+		else if (len == 0)
 		{
-			fprintf (stderr,"%s: %i file closed \n",__FUNCTION__, __LINE__);	
+			fprintf(stderr, "%s: %i file closed \n", __FUNCTION__, __LINE__);
 		}
 		else if ((i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();
 			double elapsed_time = ((double)(mark_time - last_time)) / CLOCKS_PER_SEC; // in seconds
 			double ops_per_sec = QUANTUM / elapsed_time;
-			fprintf(stderr, "\t%6.2f/sec\n", ops_per_sec);
+			fprintf(stderr, "\t%6.2f/sec (%lu records)\n", ops_per_sec, i);
 			last_time = mark_time;
 		}
 	}
-fprintf (stderr,"%s: %i\n",__FUNCTION__, __LINE__);
+
 	pthread_join(tinfo, NULL);
 	shutdown_threads();
 	dragonfly_io_close(input);
+	sleep (2);
 	closelog();
 
 	fprintf(stderr, "Cleaning up files\n");
 	remove(config_path);
 	remove(input_path);
 	remove(analyzer_path);
+	remove(INPUT_FILE);
 	fprintf(stderr, "-------------------------------------------------------\n\n");
 }
 

@@ -22,7 +22,77 @@
 
 #include "msgqueue.h"
 
-#define QUANTUM	500000
+#define QUANTUM 50000
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
+{
+	char buffer[4096];
+	char reset_msg[1024];
+	struct timespec tm;
+	snprintf(reset_msg, sizeof(reset_msg), "%s-###################", queue_name);
+	const int length = strlen(reset_msg);
+
+	struct rlimit rlim;
+	rlim.rlim_cur = RLIM_INFINITY;
+	rlim.rlim_max = RLIM_INFINITY;
+
+	if (setrlimit(RLIMIT_MSGQUEUE, &rlim) == -1)
+	{
+		perror("setrlimit");
+		return;
+	}
+
+	struct mq_attr attr;
+	attr.mq_maxmsg = queue_max;
+	attr.mq_msgsize = msg_max;
+	attr.mq_curmsgs = 0;
+
+	/* create the message queue */
+	mqd_t mq = mq_open(queue_name, O_RDWR, 0644, &attr);
+	if (mq >= 0)
+	{
+		/*
+	 	 *
+	     */
+		clock_gettime(CLOCK_REALTIME, &tm);
+		tm.tv_sec += 2;
+		int n = mq_timedsend(mq, reset_msg, length, 1, &tm);
+		if (n < 0)
+		{
+			syslog(LOG_ERR, "mq_timedsend() error: %d - %s", errno, strerror(errno));
+			fprintf(stderr, "mq_timedsend() error: %d - %s\n", errno, strerror(errno));
+			mq_close(mq);
+			return;
+		}
+		/*
+		 *
+		 */
+		do
+		{
+			n = mq_receive(mq, buffer, msg_max, NULL);
+			if (n < 0)
+			{
+				syslog(LOG_ERR, "mq_receive() error: %d - %s", errno, strerror(errno));
+				fprintf(stderr, "mq_receive() error: %d - %s\n", errno, strerror(errno));
+				mq_close(mq);
+				return;
+			}
+			if (strncmp(buffer, reset_msg, length) == 0)
+			{
+#ifdef __DEBUG3__
+				fprintf(stderr, "%s: %s success\n", queue_name, __FUNCTION__);
+#endif
+				break;
+			}
+		} while (1);
+	}
+	mq_close(mq);
+}
+
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -71,8 +141,7 @@ void msgqueue_cancel(queue_t *q)
 	if (!q || q->cancel)
 		return;
 	q->cancel = 1;
-	struct timespec tmo = {0, QUANTUM };
-	nanosleep(&tmo, NULL);
+	usleep (25000);
 }
 
 /*
@@ -87,6 +156,7 @@ void msgqueue_destroy(queue_t *q)
 	int n = 0;
 	struct timespec tm;
 	char buffer[4096];
+	msgqueue_cancel(q);
 	do
 	{
 		clock_gettime(CLOCK_REALTIME, &tm);
@@ -95,8 +165,6 @@ void msgqueue_destroy(queue_t *q)
 	} while (n > 0);
 
 	mq_close(q->mq);
-	// TODO:  need to drain the queue
-	//mq_unlink(q->queue_name);
 	free(q->queue_name);
 	free(q);
 	q = NULL;
@@ -109,10 +177,9 @@ void msgqueue_destroy(queue_t *q)
  */
 int msgqueue_send(queue_t *q, const char *buffer, int length)
 {
-
 	if (!q || q->cancel)
 		return -1;
-	
+
 	int n = 0;
 	struct timespec tm;
 
@@ -124,23 +191,30 @@ int msgqueue_send(queue_t *q, const char *buffer, int length)
 	do
 	{
 		clock_gettime(CLOCK_REALTIME, &tm);
-		tm.tv_nsec += QUANTUM;
-
+		tm.tv_sec++;
+		tm.tv_nsec = 0;
 		n = mq_timedsend(q->mq, buffer, length, 1, &tm);
 		if (n < 0)
 		{
 			switch (errno)
 			{
 			case ETIMEDOUT:
+				//fprintf(stderr, "%s: ETIMEDOUT(%i)\n", __FUNCTION__, errno);
 				break;
 			case ENOBUFS:
+				//fprintf(stderr, "%s: ENOBUFS(%i)\n", __FUNCTION__, errno);
 				break;
 			case EAGAIN:
+				//fprintf(stderr, "%s: EAGAIN(%i)\n", __FUNCTION__, errno);
 				break;
 			case EINVAL:
+				//fprintf(stderr, "%s: EINVAL(%i)\n", __FUNCTION__, errno);
 				break;
 			default:
-				syslog(LOG_ERR, "mq_timedsend() error: %d - %s", errno, strerror(errno));
+				if (!q->cancel)
+				{
+					syslog(LOG_ERR, "mq_timedsend() error: %d - %s", errno, strerror(errno));
+				}
 				return -1;
 			}
 		}
@@ -169,22 +243,31 @@ int msgqueue_recv(queue_t *q, char *buffer, int max_size)
 	do
 	{
 		clock_gettime(CLOCK_REALTIME, &tm);
-		tm.tv_nsec += QUANTUM;
+		tm.tv_sec++;
+		tm.tv_nsec = 0;
 		n = mq_timedreceive(q->mq, buffer, max_size, NULL, &tm);
 		if (n < 0)
 		{
+
 			switch (errno)
 			{
 			case ETIMEDOUT:
+				//fprintf(stderr, "%s: ETIMEDOUT(%i)\n", __FUNCTION__, errno);
 				break;
 			case ENOBUFS:
+				//fprintf(stderr, "%s: ENOBUFS(%i)\n", __FUNCTION__, errno);
 				break;
 			case EAGAIN:
+				//fprintf(stderr, "%s: EAGAIN(%i)\n", __FUNCTION__, errno);
 				break;
 			case EINVAL:
+				//fprintf(stderr, "%s: EINVAL(%i)\n", __FUNCTION__, errno);
 				break;
 			default:
-				syslog(LOG_ERR, "mq_timedreceive() error: %d - %s", errno, strerror(errno));
+				if (!q->cancel)
+				{
+					syslog(LOG_ERR, "mq_timedreceive() error: %d - %s", errno, strerror(errno));
+				}
 				return -1;
 			}
 		}

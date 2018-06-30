@@ -41,6 +41,7 @@
 #include "worker-threads.h"
 #include "dragonfly-io.h"
 extern int g_running;
+extern int g_flush_queue;
 
 #define WAIT_INTERVAL 2
 
@@ -52,6 +53,7 @@ extern int g_running;
 void run_self_tests(const char *dragonfly_root)
 {
 	fprintf(stderr, "Running unit tests\n");
+    g_flush_queue=1;
 
 	if (chdir(dragonfly_root) != 0)
 	{
@@ -88,24 +90,23 @@ void run_self_tests(const char *dragonfly_root)
 	//SELF_TEST2(dragonfly_root);
 	//sleep(WAIT_INTERVAL);
 
-	//SELF_TEST3(dragonfly_root);
-	//sleep(WAIT_INTERVAL);
+	SELF_TEST3(dragonfly_root);
+	sleep(WAIT_INTERVAL);
 
 	//SELF_TEST4(dragonfly_root);
 	//sleep(WAIT_INTERVAL);
 
-	SELF_TEST5(dragonfly_root);
-	sleep(WAIT_INTERVAL);
+	//SELF_TEST5(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
 
 	//SELF_TEST6(dragonfly_root);
 	//sleep(WAIT_INTERVAL);
 
-
 	//SELF_TEST7(dragonfly_root);
 	//sleep(WAIT_INTERVAL);
 
-	SELF_TEST8(dragonfly_root);
-	sleep(WAIT_INTERVAL);
+	//SELF_TEST8(dragonfly_root);
+	//sleep(WAIT_INTERVAL);
 
 	rmdir(scripts_dir);
 	rmdir(log_dir);

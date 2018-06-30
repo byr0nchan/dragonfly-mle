@@ -214,6 +214,14 @@ void dragonfly_io_close(DF_HANDLE *dh)
         {
                 file_close(dh);
         }
+        else if (dh->io_type == DF_IN_ZFILE_TYPE)
+        {
+                return zfile_close(dh);
+        }
+        else if (dh->io_type == DF_IN_KAFKA_TYPE)
+        {
+                return kafka_close(dh);
+        }
         free(dh->path);
         dh->path = NULL;
         free(dh);

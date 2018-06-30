@@ -43,7 +43,7 @@
 #include "test.h"
 
 #define MAX_TEST4_MESSAGES 100000
-#define QUANTUM (MAX_TEST4_MESSAGES/10)
+#define QUANTUM (MAX_TEST4_MESSAGES / 10)
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -64,14 +64,15 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
-	"function loop (msg)\n"
-	"   output_event (\"log\", msg)\n"
+	"function loop (tbl)\n"
+	"   output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -133,6 +134,7 @@ void SELF_TEST4(const char *dragonfly_root)
 	/*
 	 * write messages walking the alphabet
 	 */
+	char buffer[1024];
 	int mod = 0;
 	for (unsigned long i = 0; i < MAX_TEST4_MESSAGES; i++)
 	{
@@ -140,11 +142,14 @@ void SELF_TEST4(const char *dragonfly_root)
 		for (int j = 0; j < (sizeof(msg) - 1); j++)
 		{
 			msg[j] = 'A' + (mod % 48);
+			if (msg[j] == '\\')
+				msg[j] = ' ';
 			mod++;
 		}
 		msg[sizeof(msg) - 1] = '\0';
-		msg[sizeof(msg) - 2] = '\n';
-		if (dragonfly_io_write(pump, msg) < 0)
+		//msg[sizeof(msg) - 2] = '\n';
+		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg);
+		if (dragonfly_io_write(pump, buffer) < 0)
 		{
 			fprintf(stderr, "error pumping to \"ipc://input.ipc\"\n");
 			abort();

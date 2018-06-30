@@ -69,7 +69,8 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 // generate a test.lua analyzer
@@ -79,6 +80,7 @@ static const char *ANALYZER_LUA =
 	"function loop (msg)\n"
 	"  output_event (\"log\", msg)\n"
 	"end\n\n";
+
 
 /*
  * ---------------------------------------------------------------------------------------

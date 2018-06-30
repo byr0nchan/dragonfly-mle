@@ -45,7 +45,7 @@
 
 extern int g_running;
 
-#define MAX_TEST5_MESSAGES 100000
+#define MAX_TEST5_MESSAGES 1000000
 #define QUANTUM (MAX_TEST5_MESSAGES/10)
 
 static const char *CONFIG_LUA =
@@ -67,14 +67,16 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
-	"function loop (msg)\n"
-	"   output_event (\"log\", msg)\n"
+	"function loop (tbl)\n"
+	"   -- print (tbl.msg)\n"
+	"   output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -114,17 +116,15 @@ static void *consumer_thread(void *ptr)
 	clock_t last_time = clock();
 	/*
 	 * write messages walking the alphabet
-	 */
-fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
+	 */;
 	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
 	{
-		char msg_in[128];
+		char msg_in[1024];
 		msg_in[sizeof(msg_in) - 1] = '\0';
 		if (dragonfly_io_read(pump_in, msg_in, sizeof(msg_in)) <= 0)
 		{
 			break;
 		}
-fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
 		if ((i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();
@@ -134,7 +134,6 @@ fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
 			last_time = mark_time;
 		}
 	}
-fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
 	dragonfly_io_close(pump_in);
 	return (void *)NULL;
 }
@@ -187,15 +186,17 @@ void SELF_TEST5(const char *dragonfly_root)
 	 */
 
 	int mod = 0;
+	char buffer [1024];
 	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
 	{
 		char msg_out[128];
 		for (int j = 0; j < (sizeof(msg_out) - 2); j++)
 		{
 			msg_out[j] = 'A' + (mod % 48);
+			if (msg_out[j]=='\\') msg_out[j]=' ';
 			mod++;
 		}
-		msg_out[127] = '\0';
+		msg_out[sizeof(msg_out)-1] = '\0';
 
 		int len = strnlen(msg_out, sizeof(msg_out));
 		if (len <= 0)
@@ -204,7 +205,8 @@ void SELF_TEST5(const char *dragonfly_root)
 			abort();
 		}
 //fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
-		dragonfly_io_write(pump_out, msg_out);
+		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg_out);
+		dragonfly_io_write(pump_out, buffer);
 	}
 	pthread_join(tinfo, NULL);
 	shutdown_threads();
