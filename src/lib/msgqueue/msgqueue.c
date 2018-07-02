@@ -36,6 +36,8 @@ void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
 	snprintf(reset_msg, sizeof(reset_msg), "%s-###################", queue_name);
 	const int length = strlen(reset_msg);
 
+
+#ifdef COMMENT_OUT
 	struct rlimit rlim;
 	rlim.rlim_cur = RLIM_INFINITY;
 	rlim.rlim_max = RLIM_INFINITY;
@@ -45,6 +47,7 @@ void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
 		perror("setrlimit");
 		return;
 	}
+#endif
 
 	struct mq_attr attr;
 	attr.mq_maxmsg = queue_max;
@@ -104,6 +107,7 @@ queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 	if (!q)
 		return NULL;
 
+#ifdef COMMENT_OUT
 	struct rlimit rlim;
 	rlim.rlim_cur = RLIM_INFINITY;
 	rlim.rlim_max = RLIM_INFINITY;
@@ -113,6 +117,7 @@ queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 		perror("setrlimit");
 		return NULL;
 	}
+#endif
 
 	memset(q, 0, sizeof(queue_t));
 	q->queue_name = strndup(queue_name, NAME_MAX);
