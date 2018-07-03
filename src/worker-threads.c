@@ -239,7 +239,10 @@ int response_event(lua_State *L)
  */
 void lua_flywheel_loop(INPUT_CONFIG *flywheel)
 {
-    time_t last_time = (time(NULL)-359);
+    time_t last_time = (time(NULL) - 360);
+    time_t now_time;
+    char buffer[1024];
+    char timestamp[64];
     char logFile[PATH_MAX];
     snprintf(logFile, (sizeof(logFile) - 1), "%s/dragonfly-mle.log", g_log_dir);
 
@@ -263,11 +266,9 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
         /*
          * log stats every minute
          */
-        time_t now_time = time(NULL);
-        if ((now_time - last_time) > 360)
+        now_time = time(NULL);
+        if ((now_time - last_time) >= 360)
         {
-            char buffer[1024];
-            char timestamp[64];
             strftime(timestamp, sizeof(timestamp), "%FT%TZ", gmtime(&now_time));
             snprintf(buffer, (sizeof(buffer) - 1),
                      "{ \"time\": \"%s\", \"operations\": { \"input\": %lu, \"analyzer\":%lu, \"output\":%lu }}\n",
@@ -276,6 +277,15 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
             last_time = now_time;
         }
     }
+    /*
+     * log on exit
+     */
+    now_time = time(NULL);
+    strftime(timestamp, sizeof(timestamp), "%FT%TZ", gmtime(&now_time));
+    snprintf(buffer, (sizeof(buffer) - 1),
+             "{ \"time\": \"%s\", \"operations\": { \"input\": %lu, \"analyzer\":%lu, \"output\":%lu }}\n",
+             timestamp, g_stats.input, g_stats.analysis, g_stats.output);
+    fputs(buffer, log);
     fclose(log);
 }
 
@@ -839,7 +849,7 @@ void launch_analyzer_process(const char *dragonfly_root)
 {
     int n = 0;
     memset(g_analyzer_thread, 0, sizeof(g_analyzer_thread));
-   
+
     for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
     {
         if (g_analyzer_list[i].script != NULL)
@@ -861,8 +871,8 @@ void launch_analyzer_process(const char *dragonfly_root)
             }
         }
     }
-    
-    sleep (1);
+
+    sleep(1);
 
     if (chroot(g_root_dir) != 0)
     {
