@@ -57,7 +57,6 @@ function loop(msg)
 
         local ml_command = table.concat(command, " ")
         reply = conn:command_line(ml_command)
-	    --print (reply)	    
     end
 end
 

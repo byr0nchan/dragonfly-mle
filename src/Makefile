@@ -5,7 +5,7 @@
 CC = gcc
 CFLAGS = -O2 -Wall -march=native -Werror 
 # -D__DEBUG__  
-# -DFORK_PROCESS
+
 INCLUDES = -I. -I./io -I./test -I./lib/msgqueue -I./resp -I./lib/lua-cjson \
            -I./lib/lua-hiredis -Ilib/lua-cmsgpack
 
@@ -49,7 +49,7 @@ SRCS4 = test/test.c test/test0.c test/test1.c test/test2.c \
 
 OBJS = $(SRCS:.c=.o) $(SRCS1:.c=.o) $(SRCS2:.c=.o) $(SRCS3:.c=.o) $(SRCS4:.c=.o)
 
-MAIN = dragonfly
+MAIN = dragonfly-mle
 DEBUG_BIN = dragonfly-debug
 TEST_BIN = dragonfly-test
 

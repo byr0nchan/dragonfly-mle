@@ -141,11 +141,6 @@ int main(int argc, char **argv)
 #endif
 	launch_lua_threads(g_dragonfly_root);
 
-	while (g_running)
-	{
-		sleep(1);
-	}
-
 	closelog();
 	exit(EXIT_SUCCESS);
 }

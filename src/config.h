@@ -42,9 +42,9 @@
 
 typedef struct _MLE_STATS_
 {
-    int input;
-    int analysis;
-    int output;
+    unsigned long input;
+    unsigned long analysis;
+    unsigned long output;
 } MLE_STATS;
 
 typedef struct _INPUT_CONFIG_
