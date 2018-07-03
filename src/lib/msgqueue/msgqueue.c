@@ -36,19 +36,6 @@ void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
 	snprintf(reset_msg, sizeof(reset_msg), "%s-###################", queue_name);
 	const int length = strlen(reset_msg);
 
-
-#ifdef COMMENT_OUT
-	struct rlimit rlim;
-	rlim.rlim_cur = RLIM_INFINITY;
-	rlim.rlim_max = RLIM_INFINITY;
-
-	if (setrlimit(RLIMIT_MSGQUEUE, &rlim) == -1)
-	{
-		perror("setrlimit");
-		return;
-	}
-#endif
-
 	struct mq_attr attr;
 	attr.mq_maxmsg = queue_max;
 	attr.mq_msgsize = msg_max;
@@ -66,8 +53,11 @@ void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
 		int n = mq_timedsend(mq, reset_msg, length, 1, &tm);
 		if (n < 0)
 		{
-			syslog(LOG_ERR, "mq_timedsend() error: %d - %s", errno, strerror(errno));
-			fprintf(stderr, "mq_timedsend() error: %d - %s\n", errno, strerror(errno));
+			if (errno != ETIMEDOUT)
+			{
+				syslog(LOG_ERR, "mq_timedsend() error: %d - %s", errno, strerror(errno));
+				fprintf(stderr, "mq_timedsend() error: %d - %s\n", errno, strerror(errno));
+			}
 			mq_close(mq);
 			return;
 		}
@@ -107,18 +97,6 @@ queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 	if (!q)
 		return NULL;
 
-#ifdef COMMENT_OUT
-	struct rlimit rlim;
-	rlim.rlim_cur = RLIM_INFINITY;
-	rlim.rlim_max = RLIM_INFINITY;
-
-	if (setrlimit(RLIMIT_MSGQUEUE, &rlim) == -1)
-	{
-		perror("setrlimit");
-		return NULL;
-	}
-#endif
-
 	memset(q, 0, sizeof(queue_t));
 	q->queue_name = strndup(queue_name, NAME_MAX);
 	q->attr.mq_maxmsg = queue_max;
@@ -130,6 +108,8 @@ queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 	if (q->mq < 0)
 	{
 		syslog(LOG_ERR, "mq_open() error: %s", strerror(errno));
+		fprintf(stderr, "mq_open() error: %s", strerror(errno));
+
 		free(q);
 		exit(EXIT_FAILURE);
 	}
@@ -146,7 +126,7 @@ void msgqueue_cancel(queue_t *q)
 	if (!q || q->cancel)
 		return;
 	q->cancel = 1;
-	usleep (25000);
+	usleep(25000);
 }
 
 /*
