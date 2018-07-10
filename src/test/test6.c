@@ -42,7 +42,7 @@
 
 #include "test.h"
 
-#define MAX_TEST6_MESSAGES 100000
+#define MAX_TEST6_MESSAGES 10000
 #define QUANTUM (MAX_TEST6_MESSAGES / 10)
 #define INPUT_FILE "input.txt"
 

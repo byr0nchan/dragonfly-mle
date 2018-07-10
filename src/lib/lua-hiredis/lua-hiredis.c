@@ -62,7 +62,7 @@ extern "C"
 {
 #endif
 
-static char *g_lua_redis_host = '\0';
+static char *g_lua_redis_host = 0;
 static int g_lua_redis_port = 0;
 
 #include <stdlib.h>

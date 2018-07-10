@@ -42,7 +42,7 @@
 
 #include "test.h"
 
-#define MAX_TEST4_MESSAGES 100000
+#define MAX_TEST4_MESSAGES 10000
 #define QUANTUM (MAX_TEST4_MESSAGES / 10)
 
 static const char *CONFIG_LUA =

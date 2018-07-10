@@ -45,7 +45,7 @@
 
 extern int g_running;
 
-#define MAX_TEST5_MESSAGES 1000000
+#define MAX_TEST5_MESSAGES 10000
 #define QUANTUM (MAX_TEST5_MESSAGES/10)
 
 static const char *CONFIG_LUA =

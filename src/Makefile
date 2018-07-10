@@ -8,10 +8,9 @@
 
 # For Linux
 CC = gcc
-CFLAGS = -O2 -Wall -march=native -Werror 
-
-INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp -I./lib/lua-cjson \
-           -I./lib/lua-hiredis -Ilib/lua-cmsgpack
+CFLAGS = -O2 -Wall -march=native -Werror
+INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp \
+	   -I./lib/lua-cjson -I./lib/lua-hiredis -Ilib/lua-cmsgpack
 
 LIBS = -lpthread -lluajit-5.1 -lhiredis -lm -lcurl -lrt -lz
 LFLAGS = -L. -L/usr/local/lib
@@ -68,37 +67,20 @@ $(MAIN): $(OBJS)
 # ------------------------------------------------------------------
 # test build
 # ------------------------------------------------------------------
-test: TEST_FLAGS =-DRUN_UNIT_TESTS -D__DEBUG__ 
+
+test: TFLAGS =-DRUN_UNIT_TESTS -D__DEBUG__
 test: $(TEST_BIN) 
 $(TEST_BIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(TFLAGS) $(INCLUDES) -o $(TEST_BIN) $(OBJS) $(LFLAGS) $(LIBS)
 #	valgrind --leak-check=yes ./$(TEST_BIN) -r /tmp
 
 # ------------------------------------------------------------------
-# debug build
-# ------------------------------------------------------------------
-debug: DEBUG_FLAGS = -g -D__DEBUG__ 
-debug: $(DEBUG_BIN) 
-$(DEBUG_BIN): $(OBJS) 
-	$(CC) $(CFLAGS) $(DFLAGS) $(INCLUDES) -o $(DEBUG_BIN) $(OBJS) $(LFLAGS) $(LIBS)
-
-# ------------------------------------------------------------------
 # misc
 # ------------------------------------------------------------------
 .c.o:
-	$(CC) $(CFLAGS) $(TEST_FLAGS) $(INCLUDES) -c $<  -o $@
+	$(CC) $(CFLAGS) $(TFLAGS) $(INCLUDES) -c $<  -o $@
 
 .PHONY: test clean
 
 clean:
-	$(RM) -f $(OBJS)
-ifneq (,$(wildcard $(MAIN)))
-	$(RM) -f $(MAIN)
-endif
-ifneq (,$(wildcard $(DEBUG_BIN)))
-	$(RM) -f $(DEBUG_BIN)
-endif
-ifneq (,$(wildcard $(TEST_BIN)))
-	$(RM) -f $(TEST_BIN)
-endif
-
+	$(RM) -f $(OBJS) $(MAIN) $(DEBUG_BIN) $(TEST_BIN) 
