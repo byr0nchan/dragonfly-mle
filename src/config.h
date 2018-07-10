@@ -30,13 +30,21 @@
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
 #define RUN_DIR "run"
 #define LOG_DIR "log"
-#define SCRIPTS_DIR "scripts"
-#define CONFIG_FILE "config.lua"
+#define ETL_DIR "etl"
+#define ANALYZER_DIR "analyzer"
+#define CONFIG_DIR "config"
+#define CONFIG_FILE "config/config.lua"
 
 #define USER_NOBODY "nobody"
-#define DRAGONFLY_ROOT_DIR "/opt/dragonfly"
 #define DRAGONFLY_LOG_DIR "log"
 #define DRAGONFLY_LOG_NAME "dragonfly.log"
+
+#ifdef __linux__
+#define DRAGONFLY_ROOT_DIR "/opt/dragonfly-mle"
+#else
+#define DRAGONFLY_ROOT_DIR "/usr/local/dragonfly-mle"
+#endif
+#define TMP_DIR "/tmp/"
 
 #define QUEUE_INPUT "/input_queue"
 
@@ -79,6 +87,10 @@ typedef struct _RESPONDER_CONFIG_
     char *name;
     char *param;
 } RESPONDER_CONFIG;
+
+#include <luajit-2.0/lauxlib.h>
+#include <luajit-2.0/lualib.h>
+#include <luajit-2.0/luajit.h>
 
 int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max);
 void unload_analyzers_config(ANALYZER_CONFIG analyzer_list[], int max);

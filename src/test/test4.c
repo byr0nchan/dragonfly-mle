@@ -47,7 +47,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -101,9 +101,9 @@ void SELF_TEST4(const char *dragonfly_root)
 {
 
 	int halfway = (MAX_TEST4_MESSAGES / 2);
-	const char *analyzer_path = "./scripts/analyzer.lua";
-	const char *input_path = "./scripts/input.lua";
-	const char *config_path = "./scripts/config.lua";
+	const char *analyzer_path = "./analyzer/analyzer.lua";
+	const char *input_path = "./etl/etl.lua";
+	const char *config_path = "./config/config.lua";
 
 	fprintf(stderr, "\n\n%s: rotate file while pumping %d messages to test.log\n", __FUNCTION__, MAX_TEST4_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");

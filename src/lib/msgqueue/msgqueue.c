@@ -186,21 +186,19 @@ int msgqueue_send(queue_t *q, const char *buffer, int length)
 			case ETIMEDOUT:
 				//fprintf(stderr, "%s: ETIMEDOUT(%i)\n", __FUNCTION__, errno);
 				break;
-			case ENOBUFS:
-				//fprintf(stderr, "%s: ENOBUFS(%i)\n", __FUNCTION__, errno);
-				break;
 			case EAGAIN:
 				//fprintf(stderr, "%s: EAGAIN(%i)\n", __FUNCTION__, errno);
 				break;
+			case ENOBUFS:
 			case EINVAL:
-				//fprintf(stderr, "%s: EINVAL(%i)\n", __FUNCTION__, errno);
-				break;
+			case EBADF:
 			default:
 				if (!q->cancel)
 				{
+					fprintf(stderr, "mq_timedsend() error: %d - %s\n", errno, strerror(errno));
 					syslog(LOG_ERR, "mq_timedsend() error: %d - %s", errno, strerror(errno));
+					exit(EXIT_FAILURE);
 				}
-				return -1;
 			}
 		}
 	} while (!q->cancel && (n < 0));
@@ -233,27 +231,24 @@ int msgqueue_recv(queue_t *q, char *buffer, int max_size)
 		n = mq_timedreceive(q->mq, buffer, max_size, NULL, &tm);
 		if (n < 0)
 		{
-
 			switch (errno)
 			{
 			case ETIMEDOUT:
 				//fprintf(stderr, "%s: ETIMEDOUT(%i)\n", __FUNCTION__, errno);
 				break;
-			case ENOBUFS:
-				//fprintf(stderr, "%s: ENOBUFS(%i)\n", __FUNCTION__, errno);
-				break;
 			case EAGAIN:
 				//fprintf(stderr, "%s: EAGAIN(%i)\n", __FUNCTION__, errno);
 				break;
+			case ENOBUFS:
 			case EINVAL:
-				//fprintf(stderr, "%s: EINVAL(%i)\n", __FUNCTION__, errno);
-				break;
+			case EBADF:
 			default:
 				if (!q->cancel)
 				{
+					fprintf(stderr, "mq_timedreceive() error: %d - %s\n", errno, strerror(errno));
 					syslog(LOG_ERR, "mq_timedreceive() error: %d - %s", errno, strerror(errno));
+					exit(EXIT_FAILURE);
 				}
-				return -1;
 			}
 		}
 	} while (!q->cancel && (n < 0));

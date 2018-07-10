@@ -44,7 +44,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -100,9 +100,9 @@ static void write_file(const char *file_path, const char *content)
 void SELF_TEST2(const char *dragonfly_root)
 {
 #define MAX_TEST2_MESSAGES 10000
-	const char *analyzer_path = "./scripts/analyzer.lua";
-	const char *input_path = "./scripts/input.lua";
-	const char *config_path = "./scripts/config.lua";
+	const char *analyzer_path = "./analyzer/analyzer.lua";
+	const char *input_path = "./etl/input.lua";
+	const char *config_path = "./config/config.lua";
 
 	fprintf(stderr, "\n\n%s: connecting to redis, sending %u ping messages, then disconnecting\n", __FUNCTION__, MAX_TEST2_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");

@@ -62,15 +62,18 @@ extern int g_verbose;
 extern int g_chroot;
 extern int g_drop_priv;
 extern int g_flush_queue;
+extern char *g_dragonfly_log;
 
 static char g_root_dir[PATH_MAX];
 static char g_log_dir[PATH_MAX];
-static char g_scripts_dir[PATH_MAX];
+static char g_analyzer_dir[PATH_MAX];
+//static char g_etl_dir[PATH_MAX];
 static char g_config_file[PATH_MAX];
 
 extern uint64_t g_running;
 
 static int g_analyzer_pid = -1;
+//static int g_etl_pid = -1;
 static int g_num_analyzer_threads = 0;
 static int g_num_input_threads = 0;
 static int g_num_output_threads = 0;
@@ -127,9 +130,6 @@ void signal_shutdown(int signum)
         // tell child process to shutdown
         kill(g_analyzer_pid, SIGTERM);
     }
-#ifdef __DEBUG3__
-    fprintf(stderr, "%s: shutting down.\n", __FUNCTION__);
-#endif
     syslog(LOG_INFO, "shutting down");
 }
 
@@ -244,8 +244,10 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
     char buffer[1024];
     char timestamp[64];
     char logFile[PATH_MAX];
+    /*
+     * Open file for logging event stats 
+     */
     snprintf(logFile, (sizeof(logFile) - 1), "%s/dragonfly-mle.log", g_log_dir);
-
     FILE *log = fopen(logFile, "a");
     setvbuf(log, NULL, _IOLBF, 0);
 
@@ -278,7 +280,7 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
         }
     }
     /*
-     * log on exit
+     * log stats on exit
      */
     now_time = time(NULL);
     strftime(timestamp, sizeof(timestamp), "%FT%TZ", gmtime(&now_time));
@@ -734,92 +736,101 @@ void initialize_configuration(const char *dragonfly_root)
     memset(g_io_thread, 0, sizeof(g_io_thread));
     memset(g_analyzer_thread, 0, sizeof(g_analyzer_thread));
 
-#ifdef __DEBUG__
-    snprintf(g_scripts_dir, PATH_MAX, "%s/%s", dragonfly_root, SCRIPTS_DIR);
-    snprintf(g_config_file, PATH_MAX, "%s/%s", g_scripts_dir, CONFIG_FILE);
-#endif
+    snprintf(g_analyzer_dir, PATH_MAX, "%s/%s", dragonfly_root, ANALYZER_DIR);
+    //snprintf(g_etl_dir, PATH_MAX, "%s/%s", dragonfly_root, ETL_DIR);
+    snprintf(g_config_file, PATH_MAX, "%s/%s", dragonfly_root, CONFIG_FILE);
 
-    strncpy(g_scripts_dir, SCRIPTS_DIR, PATH_MAX);
-    snprintf(g_config_file, PATH_MAX, "%s/%s", g_scripts_dir, CONFIG_FILE);
-    snprintf(g_log_dir, PATH_MAX, "%s", LOG_DIR);
-    if (mkdir(g_log_dir, 0660) && errno != EEXIST)
+    if (g_dragonfly_log)
     {
-        fprintf(stderr, "mkdir (%s) error - %s\n", g_log_dir, strerror(errno));
-        syslog(LOG_WARNING, "mkdir (%s) error - %s\n", g_log_dir, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    syslog(LOG_INFO, "log dir: %s\n", g_log_dir);
-    syslog(LOG_INFO, "analyzer dir: %s\n", g_scripts_dir);
-
-    struct stat sb;
-    if ((lstat(g_config_file, &sb) < 0) || !S_ISREG(sb.st_mode))
-    {
-        fprintf(stderr, "%s does not exist.\n", g_config_file);
-        syslog(LOG_WARNING, "%s does noet exist.\n", g_config_file);
-        exit(EXIT_FAILURE);
-    }
-    syslog(LOG_INFO, "config file: %s\n", g_config_file);
-
-    g_num_analyzer_threads = 0;
-    g_num_input_threads = 0;
-    g_num_output_threads = 0;
-    memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
-    memset(g_input_list, 0, sizeof(g_input_list));
-    memset(g_output_list, 0, sizeof(g_output_list));
-
-    lua_State *L = luaL_newstate();
-    /*
-     * Load config.lua
-     */
-    if (luaL_loadfile(L, g_config_file))
-    {
-        syslog(LOG_ERR, "luaL_loadfile failed; %s", lua_tostring(L, -1));
-        abort();
-    }
-    if (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN)
-    {
-        syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
-        lua_pop(L, 1);
-        exit(EXIT_FAILURE);
-    }
-    lua_getglobal(L, "redis_port");
-    if (lua_isstring(L, -1))
-    {
-        g_redis_port = atoi(lua_tostring(L, -1));
-    }
-    lua_getglobal(L, "redis_host");
-    if (lua_isstring(L, -1))
-    {
-        g_redis_host = strdup(lua_tostring(L, -1));
+        struct stat sb;
+        if ((lstat(g_dragonfly_log, &sb) < 0) || !S_ISCHR(sb.st_mode))
+        {
+            fprintf(stderr, "%s directory not exist.\n", g_dragonfly_log);
+            syslog(LOG_WARNING, "%s directory noet exist.\n", g_dragonfly_log);
+            exit(EXIT_FAILURE);
+        }
+        strncpy(g_log_dir, g_dragonfly_log, PATH_MAX);
     }
     else
     {
-        g_redis_host = strdup("127.0.0.1");
-    }
+        snprintf(g_log_dir, PATH_MAX, "%s", LOG_DIR);
+        if (mkdir(g_log_dir, 0660) && errno != EEXIST)
+        {
+            fprintf(stderr, "mkdir (%s) error - %s\n", g_log_dir, strerror(errno));
+            syslog(LOG_WARNING, "mkdir (%s) error - %s\n", g_log_dir, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        syslog(LOG_INFO, "log dir: %s\n", g_log_dir);
+        syslog(LOG_INFO, "analyzer dir: %s\n", g_analyzer_dir);
 
-    if ((g_num_analyzer_threads = load_analyzers_config(L, g_analyzer_list, MAX_ANALYZER_STREAMS)) <= 0)
-    {
-        syslog(LOG_ERR, "load_analyzer_config failed");
-        abort();
+        struct stat sb;
+        if ((lstat(g_config_file, &sb) < 0) || !S_ISREG(sb.st_mode))
+        {
+            fprintf(stderr, "%s does not exist.\n", g_config_file);
+            syslog(LOG_WARNING, "%s does noet exist.\n", g_config_file);
+            exit(EXIT_FAILURE);
+        }
+        syslog(LOG_INFO, "config file: %s\n", g_config_file);
+
+        g_num_analyzer_threads = 0;
+        g_num_input_threads = 0;
+        g_num_output_threads = 0;
+        memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
+        memset(g_input_list, 0, sizeof(g_input_list));
+        memset(g_output_list, 0, sizeof(g_output_list));
+
+        lua_State *L = luaL_newstate();
+        /*
+     * Load config.lua
+     */
+        if (luaL_loadfile(L, g_config_file))
+        {
+            syslog(LOG_ERR, "luaL_loadfile failed; %s", lua_tostring(L, -1));
+            abort();
+        }
+        if (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN)
+        {
+            syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
+            lua_pop(L, 1);
+            exit(EXIT_FAILURE);
+        }
+        lua_getglobal(L, "redis_port");
+        if (lua_isstring(L, -1))
+        {
+            g_redis_port = atoi(lua_tostring(L, -1));
+        }
+        lua_getglobal(L, "redis_host");
+        if (lua_isstring(L, -1))
+        {
+            g_redis_host = strdup(lua_tostring(L, -1));
+        }
+        else
+        {
+            g_redis_host = strdup("127.0.0.1");
+        }
+        if ((g_num_analyzer_threads = load_analyzers_config(L, g_analyzer_list, MAX_ANALYZER_STREAMS)) <= 0)
+        {
+            syslog(LOG_ERR, "load_analyzer_config failed");
+            abort();
+        }
+        if ((g_num_output_threads = load_outputs_config(L, g_output_list, MAX_OUTPUT_STREAMS)) <= 0)
+        {
+            syslog(LOG_ERR, "load_output_config failed");
+            abort();
+        }
+        if ((g_num_input_threads = load_inputs_config(L, g_input_list, MAX_INPUT_STREAMS)) <= 0)
+        {
+            syslog(LOG_ERR, "load_input_config failed");
+            abort();
+        }
+        if ((load_responder_config(L, g_responder_list, MAX_RESPONDER_COMMANDS)) < 0)
+        {
+            syslog(LOG_ERR, "load_responder_config failed");
+            abort();
+        }
+        lua_close(L);
     }
-    if ((g_num_output_threads = load_outputs_config(L, g_output_list, MAX_OUTPUT_STREAMS)) <= 0)
-    {
-        syslog(LOG_ERR, "load_output_config failed");
-        abort();
-    }
-    if ((g_num_input_threads = load_inputs_config(L, g_input_list, MAX_INPUT_STREAMS)) <= 0)
-    {
-        syslog(LOG_ERR, "load_input_config failed");
-        abort();
-    }
-    if ((load_responder_config(L, g_responder_list, MAX_RESPONDER_COMMANDS)) < 0)
-    {
-        syslog(LOG_ERR, "load_responder_config failed");
-        abort();
-    }
-    lua_close(L);
 }
-
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -847,7 +858,7 @@ static void process_drop_privilege()
  * ---------------------------------------------------------------------------------------
  */
 
-void launch_analyzer_process(const char *dragonfly_root)
+void launch_analyzer_process(const char *dragonfly_analyzer_root)
 {
     int n = 0;
 
@@ -855,15 +866,9 @@ void launch_analyzer_process(const char *dragonfly_root)
     {
         if (g_analyzer_list[i].script != NULL)
         {
-            /*
             char analyzer_name[1024];
             snprintf(analyzer_name, sizeof(analyzer_name), "%s-%d", QUEUE_ANALYZER, i);
-            if (g_flush_queue)
-            {
-                msgqueue_reset(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
-            }
             g_analyzer_list[i].queue = msgqueue_create(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
-            */
             for (int j = 0; j < MAX_WORKER_THREADS; j++)
             {
                 if (pthread_create(&(g_analyzer_thread[n++]), NULL, lua_analyzer_thread, (void *)&g_analyzer_list[i]) != 0)
@@ -877,7 +882,7 @@ void launch_analyzer_process(const char *dragonfly_root)
 
     sleep(1);
 
-    if (chroot(g_root_dir) != 0)
+    if (chroot(dragonfly_analyzer_root) != 0)
     {
         syslog(LOG_ERR, "unable to chroot() to : %s - %s\n", g_root_dir, strerror(errno));
         exit(EXIT_FAILURE);
@@ -892,10 +897,20 @@ void launch_analyzer_process(const char *dragonfly_root)
     {
         sleep(1);
     }
+
     n = 0;
     while (g_analyzer_thread[n])
     {
         pthread_join(g_analyzer_thread[n++], NULL);
+    }
+    for (int i = 0; g_analyzer_list[i].queue != NULL; i++)
+    {
+        msgqueue_cancel(g_analyzer_list[i].queue);
+    }
+    for (int i = 0; g_analyzer_list[i].queue != NULL; i++)
+    {
+        msgqueue_destroy(g_analyzer_list[i].queue);
+        g_analyzer_list[i].queue = NULL;
     }
     exit(EXIT_SUCCESS);
 }
@@ -914,7 +929,7 @@ void create_message_queues()
         {
             char analyzer_name[1024];
             snprintf(analyzer_name, sizeof(analyzer_name), "%s-%d", QUEUE_ANALYZER, i);
-        
+
             if (g_flush_queue)
             {
                 msgqueue_reset(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
@@ -1064,8 +1079,8 @@ void startup_threads(const char *dragonfly_root)
     }
     else if (g_analyzer_pid == 0)
     {
-        // child process
-        launch_analyzer_process(dragonfly_root);
+        // child launch_analyzer_process
+        launch_analyzer_process(g_analyzer_dir);
     }
     else
     {
@@ -1100,6 +1115,11 @@ void startup_threads(const char *dragonfly_root)
                 }
             }
         }
+
+
+
+
+
 
         for (int i = 0; i < MAX_OUTPUT_STREAMS; i++)
         {

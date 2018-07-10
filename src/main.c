@@ -43,12 +43,12 @@
 #include <sys/limits.h>
 #endif
 
+#include "config.h"
 #include "test.h"
 #include "worker-threads.h"
 
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
-#define DRAGONFLY_DIR "/opt/dragonfly"
-#define TMP_DIR "/tmp/"
+
 
 int g_chroot = 0;
 int g_verbose = 0;
@@ -59,6 +59,7 @@ uint64_t g_msgSubscribed = 0;
 uint64_t g_msgReceived = 0;
 uint64_t g_running = 1;
 char g_dragonfly_root[PATH_MAX];
+char *g_dragonfly_log = NULL;
 char g_suricata_command_path[PATH_MAX];
 
 /*
@@ -69,7 +70,7 @@ char g_suricata_command_path[PATH_MAX];
 
 void print_usage()
 {
-	printf("Usage: dragonfly -c -p -v -r <root dir>\n");
+	printf("Usage: dragonfly [-c f -p -r <root dir> -l <log dir>] -v\n");
 }
 
 /*
@@ -80,11 +81,10 @@ void print_usage()
 
 int main(int argc, char **argv)
 {
+	int option = 0;
 	memset(g_dragonfly_root, 0, sizeof(g_dragonfly_root));
 	memset(g_suricata_command_path, 0, sizeof(g_suricata_command_path));
-
-	int option = 0;
-	while ((option = getopt(argc, argv, "cfpr:v")) != -1)
+	while ((option = getopt(argc, argv, "cflpr:v")) != -1)
 	{
 		switch (option)
 		{
@@ -108,6 +108,11 @@ int main(int argc, char **argv)
 			strncpy(g_dragonfly_root, optarg, PATH_MAX);
 			break;
 
+			/* log directory */
+		case 'l':
+			g_dragonfly_log = strndup (optarg, PATH_MAX);
+			break;
+
 			/* verbose */
 		case 'v':
 			g_verbose = 1;
@@ -119,9 +124,13 @@ int main(int argc, char **argv)
 		}
 	}
 
+#ifdef RUN_UNIT_TESTS
+	run_self_tests(TMP_DIR);
+#endif
+
 	if (!*g_dragonfly_root)
 	{
-		strncpy(g_dragonfly_root, DRAGONFLY_DIR, PATH_MAX);
+		strncpy(g_dragonfly_root, DRAGONFLY_ROOT_DIR, PATH_MAX);
 	}
 	struct stat sb;
 	if ((lstat(g_dragonfly_root, &sb) < 0) || !S_ISDIR(sb.st_mode))
@@ -129,10 +138,6 @@ int main(int argc, char **argv)
 		fprintf(stderr, "DRAGONFLY_ROOT %s does not exist\n", g_dragonfly_root);
 		exit(EXIT_FAILURE);
 	}
-
-#ifdef RUN_UNIT_TESTS
-	run_self_tests(TMP_DIR);
-#endif
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);

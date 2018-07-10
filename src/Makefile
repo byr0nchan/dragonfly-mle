@@ -2,19 +2,24 @@
 # dragonfly build
 # ------------------------------------------------------------------
 
+# For FreeBSD
+#CC = cc
+#CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare
+
+# For Linux
 CC = gcc
 CFLAGS = -O2 -Wall -march=native -Werror 
-# -D__DEBUG__  
 
-INCLUDES = -I. -I./io -I./test -I./lib/msgqueue -I./resp -I./lib/lua-cjson \
+INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp -I./lib/lua-cjson \
            -I./lib/lua-hiredis -Ilib/lua-cmsgpack
 
 LIBS = -lpthread -lluajit-5.1 -lhiredis -lm -lcurl -lrt -lz
-LFLAGS = -L.
+LFLAGS = -L. -L/usr/local/lib
 
 TFLAGS =
 DFLAGS =  
 
+RM=/bin/rm
 
 # -----------------------------------------------------------------
 # core files
@@ -86,4 +91,14 @@ $(DEBUG_BIN): $(OBJS)
 .PHONY: test clean
 
 clean:
-	$(RM) *.o test/*.o io/*.o resp/*.o lib/lua-cjson/*.o lib/lua-hiredis/*.o *~ $(MAIN) $(DEBUG_BIN) $(TEST_BIN)
+	$(RM) -f $(OBJS)
+ifneq (,$(wildcard $(MAIN)))
+	$(RM) -f $(MAIN)
+endif
+ifneq (,$(wildcard $(DEBUG_BIN)))
+	$(RM) -f $(DEBUG_BIN)
+endif
+ifneq (,$(wildcard $(TEST_BIN)))
+	$(RM) -f $(TEST_BIN)
+endif
+

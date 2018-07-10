@@ -47,7 +47,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -99,9 +99,9 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST3(const char *dragonfly_root)
 {
-	const char *analyzer_path = "./scripts/analyzer.lua";
-	const char *input_path = "./scripts/input.lua";
-	const char *config_path = "./scripts/config.lua";
+	const char *analyzer_path = "./analyzer/analyzer.lua";
+	const char *input_path = "./etl/etl.lua";
+	const char *config_path = "./config/config.lua";
 
 	fprintf(stderr, "\n\n%s: pumping %d messages to /dev/null\n", __FUNCTION__, MAX_TEST3_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
