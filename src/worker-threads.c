@@ -67,13 +67,11 @@ extern char *g_dragonfly_log;
 static char g_root_dir[PATH_MAX];
 static char g_log_dir[PATH_MAX];
 static char g_analyzer_dir[PATH_MAX];
-//static char g_etl_dir[PATH_MAX];
 static char g_config_file[PATH_MAX];
 
 extern uint64_t g_running;
 
 static int g_analyzer_pid = -1;
-//static int g_etl_pid = -1;
 static int g_num_analyzer_threads = 0;
 static int g_num_input_threads = 0;
 static int g_num_output_threads = 0;
@@ -122,7 +120,7 @@ static void lua_disable_io(lua_State *L)
  *
  * ---------------------------------------------------------------------------------------
  */
-void signal_shutdown(int signum)
+void signal_term(int signum)
 {
     g_running = 0;
     if (g_analyzer_pid > 0)
@@ -868,7 +866,7 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
         {
             char analyzer_name[1024];
             snprintf(analyzer_name, sizeof(analyzer_name), "%s-%d", QUEUE_ANALYZER, i);
-            fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, analyzer_name);
+            //fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, analyzer_name);
             g_analyzer_list[i].queue = msgqueue_create(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
             for (int j = 0; j < MAX_WORKER_THREADS; j++)
             {
@@ -936,7 +934,7 @@ void create_message_queues()
             {
                 msgqueue_reset(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
             }
-            fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, analyzer_name);
+            //fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, analyzer_name);
             g_analyzer_list[i].queue = msgqueue_create(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
         }
     }
@@ -952,7 +950,7 @@ void create_message_queues()
                 {
                     msgqueue_reset(input_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
                 }
-                fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, input_name);
+                //fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, input_name);
                 g_input_list[i].queue = msgqueue_create(input_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
             }
         }
@@ -968,7 +966,7 @@ void create_message_queues()
             {
                 msgqueue_reset(output_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
             }
-            fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, output_name);
+            //fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, output_name);
             g_output_list[i].queue = msgqueue_create(output_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
         }
     }
@@ -1052,7 +1050,8 @@ void startup_threads(const char *dragonfly_root)
     g_running = 1;
 
     signal(SIGABRT, signal_abort);
-    signal(SIGTERM, signal_shutdown);
+    signal(SIGTERM, signal_term);
+	signal(SIGPIPE, SIG_IGN);
 
     if (chdir(dragonfly_root) != 0)
     {

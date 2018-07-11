@@ -139,7 +139,6 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");

@@ -30,6 +30,9 @@
  */
 void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
 {
+#ifdef __DEBUG3__
+	fprintf(stderr, "%s:%i\n", __FUNCTION__, __LINE__);
+#endif
 	char buffer[4096];
 	char reset_msg[1024];
 	struct timespec tm;
@@ -42,8 +45,8 @@ void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
 	attr.mq_curmsgs = 0;
 
 	/* create the message queue */
-	mqd_t mq = mq_open(queue_name, O_RDWR, 0644, &attr);
-	if (mq >= 0)
+	mqd_t mq = mq_open(queue_name, O_CLOEXEC | O_RDWR, 0644, &attr);
+	if (mq > 0)
 	{
 		/*
 	 	 *
@@ -82,8 +85,9 @@ void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
 				break;
 			}
 		} while (1);
+		mq_close(mq);
+		mq_unlink(queue_name);
 	}
-	mq_close(mq);
 }
 
 /*
@@ -93,12 +97,15 @@ void msgqueue_reset(const char *queue_name, int msg_max, long queue_max)
  */
 queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 {
+#ifdef __DEBUG3__
+	fprintf(stderr, "%s:%i\n", __FUNCTION__, __LINE__);
+#endif
 	queue_t *q = (queue_t *)malloc(sizeof(queue_t));
 	if (!q)
 		return NULL;
 
 	memset(q, 0, sizeof(queue_t));
-	
+
 	q->queue_name = strndup(queue_name, NAME_MAX);
 	q->attr.mq_maxmsg = queue_max;
 	q->attr.mq_msgsize = msg_max;
