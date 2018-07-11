@@ -119,7 +119,7 @@ void SELF_TEST0(const char *dragonfly_root)
 		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
+	fprintf(stderr, "%s: DRAGONFLY_ROOT: %s\n", __FUNCTION__, path);
 	free(path);
 	write_file(CONFIG_TEST_FILE, CONFIG_LUA);
 	write_file(FILTER_TEST_FILE, INPUT_LUA);
@@ -127,13 +127,13 @@ void SELF_TEST0(const char *dragonfly_root)
 	/*
 	 * load configuration
 	 */
-	fprintf(stderr, "Loading configuration file...");
+	fprintf(stderr, "%s: Loading configuration file...", __FUNCTION__);
 	initialize_configuration(dragonfly_root);
 	fprintf(stderr, ".done.\n");
 
 	sleep(1);
 
-	fprintf(stderr, "Unloading configuration file...");
+	fprintf(stderr, "%s: Unloading configuration file...", __FUNCTION__);
 	destroy_configuration();
 	fprintf(stderr, ".done.\n");
 

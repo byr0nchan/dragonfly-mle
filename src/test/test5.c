@@ -85,7 +85,7 @@ static const char *ANALYZER_LUA =
  */
 static void write_file(const char *file_path, const char *content)
 {
-	fprintf(stderr, "generated %s\n", file_path);
+	fprintf(stderr, "%s: generated %s\n", __FUNCTION__, file_path);
 	FILE *fp = fopen(file_path, "w+");
 	if (!fp)
 	{
@@ -209,7 +209,7 @@ void SELF_TEST5(const char *dragonfly_root)
 	dragonfly_io_close(pump_out);
 
 	closelog();
-	fprintf(stderr, "Cleaning up files\n");
+	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);
 	remove(CONFIG_TEST_FILE);
 	remove(FILTER_TEST_FILE);
 	remove(ANALYZER_TEST_FILE);

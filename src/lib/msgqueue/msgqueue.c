@@ -14,12 +14,10 @@
 #include <limits.h>
 #include <syslog.h>
 #include <fcntl.h>
-
-#include <sys/resource.h>
+#include <sys/uio.h>
 
 #ifdef __linux__
 #include <error.h>
-#include <sys/uio.h>
 #endif
 
 #include "msgqueue.h"
@@ -201,8 +199,10 @@ int msgqueue_send(queue_t *q, const char *buffer, int length)
 	{
 		//fprintf(stderr, "%s: write() length: - %i\n", __FUNCTION__, length);
 		n = writev(q->pipefd[1], iov, 2);
-		if (n < 0)
+		if (n <= 0)
 		{
+			if (n == 0)
+				return 0;
 #ifdef __DEBUG3__
 			fprintf(stderr, "%s: write() error: - %s\n", __FUNCTION__, strerror(errno));
 #endif
@@ -284,7 +284,8 @@ int msgqueue_recv(queue_t *q, char *buffer, int max_size)
 				syslog(LOG_ERR, "%s: error: message bigger than buffer size", __FUNCTION__);
 				exit(EXIT_FAILURE);
 			}
-			if (q->cancel) return 0;
+			if (q->cancel)
+				return 0;
 			n = read(q->pipefd[0], buffer, l);
 			if (n <= 0)
 			{

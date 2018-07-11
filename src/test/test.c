@@ -85,7 +85,7 @@ void run_self_tests(const char *dragonfly_root)
 	char run_dir[PATH_MAX];
 	snprintf(run_dir, sizeof(run_dir), "%s/run", dragonfly_root);
 	mkdir(run_dir, 0755);
-
+/*
 	SELF_TEST0(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
@@ -103,7 +103,7 @@ void run_self_tests(const char *dragonfly_root)
 
 	SELF_TEST5(dragonfly_root);
 	sleep(WAIT_INTERVAL);
-
+*/
 	SELF_TEST6(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 

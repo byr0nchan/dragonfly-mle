@@ -1,5 +1,6 @@
 FROM debian:stretch-slim
 LABEL  maintainer="mle@counterflowai.com" domain="counterflow.ai"
+
 RUN apt-get update --fix-missing
 RUN apt-get install -y zlib1g-dev libluajit-5.1 liblua5.1-dev lua-socket libcurl4-openssl-dev libatlas-base-dev libhiredis-dev git make
 #

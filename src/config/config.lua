@@ -9,7 +9,7 @@ redis_port = "6379"
 -- Input queues/processors
 -- -----------------------------------------------------------
 inputs = {
-   { tag="eve", uri="tail:///opt/suricata/var/log/suricata/eve.json", script="suricata-filter.lua"}
+   { tag="eve", uri="tail:///var/log/suricata/eve.json", script="suricata-filter.lua"}
 }
 
 -- -----------------------------------------------------------
@@ -28,11 +28,12 @@ analyzers = {
    -- ---------------------------------------------------------
    -- General examples 
    -- ---------------------------------------------------------
-   { tag="tls", script="example-tls.lua" },
-   { tag="dns", script="example-dns.lua" },
-   { tag="flow", script="example-flow.lua" },
+   -- { tag="tls", script="example-tls.lua" },
+   -- { tag="dns", script="example-dns.lua" },
+   -- { tag="flow", script="example-flow.lua" },
    -- { tag="ja3", script="example-ja3.lua" },
-  
+   { tag="alert", script="example-alert.lua" },
+   { tag="nsm", script="example-nsm.lua" },
    -- ---------------------------------------------------------
    -- Machine learning examples using redis
    -- ---------------------------------------------------------
@@ -45,9 +46,9 @@ analyzers = {
 -- Output queues/processors
 -- -----------------------------------------------------------
 outputs = {
-    { tag="log", uri="file://dragonfly.log"},
-    { tag="tls", uri="file://tls-alerts.log"},
-    { tag="dns", uri="file://dns-alerts.log"},
-    { tag="flow", uri="file://flow-alerts.log"},
+    { tag="log", uri="file:///var/log/dragonfly-mle.log"},
+   -- { tag="tls", uri="file://tls-alerts.log"},
+   -- { tag="dns", uri="file://dns-alerts.log"},
+   -- { tag="flow", uri="file://flow-alerts.log"},
 }
 

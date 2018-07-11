@@ -105,11 +105,11 @@ void SELF_TEST1(const char *dragonfly_root)
 	write_file(FILTER_TEST_FILE, INPUT_LUA);
 	write_file(ANALYZER_TEST_FILE, ANALYZER_LUA);
 	
-	fprintf(stderr, "Starting up threads....");
+	fprintf(stderr, "%s: starting up threads....", __FUNCTION__);
 	startup_threads(dragonfly_root);
 	fprintf(stderr, ".done.\n");
 
-	fprintf(stderr, "Shutting down threads....");
+	fprintf(stderr, "%s: shutting down threads....", __FUNCTION__);
 	shutdown_threads();
 	fprintf(stderr, ".done.\n");
 

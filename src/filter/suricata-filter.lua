@@ -7,7 +7,7 @@
 --
 -- ----------------------------------------------
 function setup()
-	print ("EVE ETL running")
+	print ("Suricata filter running")
 end
 
 -- ----------------------------------------------
@@ -16,8 +16,11 @@ end
 function loop(msg)
     local eve = cjson.decode(msg)
     if eve then
-        -- print ("EVE type: "..eve.event_type)
-        analyze_event (eve.event_type, msg)
+        if (eve.event_type=="alert") then
+            analyze_event ("alert", msg)
+        else    
+            analyzer_event("nsm", msg)
+        end
     end
 end
 

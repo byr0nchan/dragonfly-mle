@@ -124,7 +124,7 @@ static void *producer_thread(void *ptr)
 		{
 			dragonfly_io_close(pump);
 			unlink ("log/input.txt");
-			fprintf(stderr, "Truncating file input.txt\n");
+			fprintf(stderr, "SELF_TEST7: truncating file input.txt\n");
 			pump = dragonfly_io_open("file://input.txt", DF_OUT);
 			if (!pump)
 			{
@@ -222,7 +222,7 @@ void SELF_TEST7(const char *dragonfly_root)
 	dragonfly_io_close(input);
 	closelog();
 
-	fprintf(stderr, "Cleaning up files\n");
+	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);
 	remove(CONFIG_TEST_FILE);
 	remove(FILTER_TEST_FILE);
 	remove(ANALYZER_TEST_FILE);

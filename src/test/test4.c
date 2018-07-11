@@ -160,7 +160,7 @@ void SELF_TEST4(const char *dragonfly_root)
 	shutdown_threads();
 	closelog();
 
-	fprintf(stderr, "Cleaning up files\n");
+	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);
 	remove(CONFIG_TEST_FILE);
 	remove(FILTER_TEST_FILE);
 	remove(ANALYZER_TEST_FILE);

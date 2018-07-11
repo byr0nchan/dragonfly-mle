@@ -718,9 +718,9 @@ void destroy_configuration()
     g_num_analyzer_threads = 0;
     g_num_input_threads = 0;
     g_num_output_threads = 0;
-    memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
-    memset(g_input_list, 0, sizeof(g_input_list));
-    memset(g_output_list, 0, sizeof(g_output_list));
+    //memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
+    //memset(g_input_list, 0, sizeof(g_input_list));
+    //memset(g_output_list, 0, sizeof(g_output_list));
 }
 /*
  * ---------------------------------------------------------------------------------------

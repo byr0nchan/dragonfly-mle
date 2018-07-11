@@ -42,7 +42,7 @@
 
 #include "test.h"
 
-#define MAX_TEST3_MESSAGES 1000000
+#define MAX_TEST3_MESSAGES 100000
 #define QUANTUM (MAX_TEST3_MESSAGES / 10)
 
 static const char *CONFIG_LUA =
@@ -164,7 +164,7 @@ void SELF_TEST3(const char *dragonfly_root)
 	shutdown_threads();
 	closelog();
 
-	fprintf(stderr, "Cleaning up files\n");
+	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);
 	remove(CONFIG_TEST_FILE);
 	remove(FILTER_TEST_FILE);
 	remove(ANALYZER_TEST_FILE);

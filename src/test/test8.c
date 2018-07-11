@@ -164,14 +164,14 @@ void SELF_TEST8(const char *dragonfly_root)
 	msg[sizeof(msg) - 1] = '\0';
 	snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", (unsigned long) 1, msg);
 	dragonfly_io_write(pump, buffer);
-	sleep(1);
+	sleep(2);
 	shutdown_threads();
-	sleep(1);
 
+	sleep(2);
 	dragonfly_io_close(pump);
 	closelog();
 
-	fprintf(stderr, "\nCleaning up files\n");
+	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);
 	remove(CONFIG_TEST_FILE);
 	remove(FILTER_TEST_FILE);
 	remove(ANALYZER_TEST_FILE);
