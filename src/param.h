@@ -31,9 +31,8 @@
 
 #define MAX_RESPONDER_COMMANDS 4
 
-#define MAX_QUEUE_LENGTH 8
+#define MAX_QUEUE_LENGTH 10
 
 #define _MAX_BUFFER_SIZE_ 8192
-
 
 #endif
