@@ -4,11 +4,13 @@
 
 # For FreeBSD
 #CC = cc
-#CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare
+#CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare 
+#-DRUN_UNIT_TESTS -D__DEBUG__
 
 # For Linux
 CC = gcc
 CFLAGS = -O2 -Wall -march=native -Werror
+
 INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp \
 	   -I./lib/lua-cjson -I./lib/lua-hiredis -Ilib/lua-cmsgpack
 
@@ -19,6 +21,7 @@ TFLAGS =
 DFLAGS =  
 
 RM=/bin/rm
+DRAGONFLY_ROOT=/usr/local/dragonfly-mle
 
 # -----------------------------------------------------------------
 # core files
@@ -73,6 +76,21 @@ test: $(TEST_BIN)
 $(TEST_BIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(TFLAGS) $(INCLUDES) -o $(TEST_BIN) $(OBJS) $(LFLAGS) $(LIBS)
 #	valgrind --leak-check=yes ./$(TEST_BIN) -r /tmp
+
+# ------------------------------------------------------------------
+# install
+# ------------------------------------------------------------------
+
+install:  
+	@echo installing files
+	install -d $(DRAGONFLY_ROOT)/bin/ 
+	install -d $(DRAGONFLY_ROOT)/config/
+	install -d $(DRAGONFLY_ROOT)/etl/
+	install -d $(DRAGONFLY_ROOT)/analyzer/
+	install ./dragonfly-mle $(DRAGONFLY_ROOT)/bin/
+	install ./analyzer/* $(DRAGONFLY_ROOT)/analyzer/
+	install ./etl/* $(DRAGONFLY_ROOT)/etl/
+	install ./config/* $(DRAGONFLY_ROOT)/config/
 
 # ------------------------------------------------------------------
 # misc

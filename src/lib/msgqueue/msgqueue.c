@@ -98,6 +98,7 @@ queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 		return NULL;
 
 	memset(q, 0, sizeof(queue_t));
+	
 	q->queue_name = strndup(queue_name, NAME_MAX);
 	q->attr.mq_maxmsg = queue_max;
 	q->attr.mq_msgsize = msg_max;

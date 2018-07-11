@@ -39,14 +39,8 @@
 #define DRAGONFLY_LOG_DIR "log"
 #define DRAGONFLY_LOG_NAME "dragonfly.log"
 
-#ifdef __linux__
-#define DRAGONFLY_ROOT_DIR "/opt/dragonfly-mle"
-#else
 #define DRAGONFLY_ROOT_DIR "/usr/local/dragonfly-mle"
-#endif
 #define TMP_DIR "/tmp/"
-
-#define QUEUE_INPUT "/input_queue"
 
 typedef struct _MLE_STATS_
 {
@@ -55,6 +49,7 @@ typedef struct _MLE_STATS_
     unsigned long output;
 } MLE_STATS;
 
+#define QUEUE_INPUT "/input_queue"
 typedef struct _INPUT_CONFIG_
 {
     char *tag;
@@ -81,6 +76,8 @@ typedef struct _ANALYZER_CONFIG_
     queue_t *queue;
 } ANALYZER_CONFIG;
 
+
+#define QUEUE_RESPONSE "/response_queue"
 typedef struct _RESPONDER_CONFIG_
 {
     char *tag;
