@@ -74,9 +74,9 @@ void run_self_tests(const char *dragonfly_root)
 	snprintf(analyzer_dir, sizeof(analyzer_dir), "%s/%s", dragonfly_root, ANALYZER_DIR);
 	mkdir(analyzer_dir, 0755);
 
-	char etl_dir[PATH_MAX];
-	snprintf(etl_dir, sizeof(etl_dir), "%s/%s", dragonfly_root, ETL_DIR);
-	mkdir(etl_dir, 0755);
+	char filter_dir[PATH_MAX];
+	snprintf(filter_dir, sizeof(filter_dir), "%s/%s", dragonfly_root, FILTER_DIR);
+	mkdir(filter_dir, 0755);
 
 	char config_dir[PATH_MAX];
 	snprintf(config_dir, sizeof(config_dir), "%s/%s", dragonfly_root, CONFIG_DIR);
@@ -85,7 +85,7 @@ void run_self_tests(const char *dragonfly_root)
 	char run_dir[PATH_MAX];
 	snprintf(run_dir, sizeof(run_dir), "%s/run", dragonfly_root);
 	mkdir(run_dir, 0755);
-
+/*
 	SELF_TEST0(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
@@ -103,7 +103,7 @@ void run_self_tests(const char *dragonfly_root)
 
 	SELF_TEST5(dragonfly_root);
 	sleep(WAIT_INTERVAL);
-
+*/
 	SELF_TEST6(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
@@ -114,7 +114,7 @@ void run_self_tests(const char *dragonfly_root)
 	sleep(WAIT_INTERVAL);
 
 	rmdir(analyzer_dir);
-	rmdir(etl_dir);
+	rmdir(filter_dir);
 	rmdir(config_dir);
 	rmdir(run_dir);
 	exit(EXIT_SUCCESS);

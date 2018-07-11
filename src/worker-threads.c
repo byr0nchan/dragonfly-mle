@@ -312,7 +312,7 @@ static void *lua_flywheel_thread(void *ptr)
         lua_flywheel_loop(flywheel);
         dragonfly_io_close(flywheel->input);
     }
-    syslog(LOG_NOTICE, "%s exiting", flywheel->tag);
+    if (flywheel->tag) syslog(LOG_NOTICE, "%s exiting", flywheel->tag);
     return (void *)NULL;
 }
 /*
@@ -331,7 +331,7 @@ void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
 
     while (g_running)
     {
-        if ((n = msgqueue_recv(input->queue, buffer, _MAX_BUFFER_SIZE_)) < 0)
+        if ((n = msgqueue_recv(input->queue, buffer, _MAX_BUFFER_SIZE_)) <= 0)
         {
             return;
         }
@@ -452,7 +452,7 @@ static void *lua_input_thread(void *ptr)
     }
 
     lua_close(L);
-    syslog(LOG_NOTICE, "%s exiting", input->tag);
+    if (input->tag) syslog(LOG_NOTICE, "%s exiting", input->tag);
     return (void *)NULL;
 }
 
@@ -468,7 +468,7 @@ void lua_output_loop(OUTPUT_CONFIG *output)
     char buffer[_MAX_BUFFER_SIZE_];
     while (g_running)
     {
-        if ((n = msgqueue_recv(output->queue, buffer, _MAX_BUFFER_SIZE_)) < 0)
+        if ((n = msgqueue_recv(output->queue, buffer, _MAX_BUFFER_SIZE_)) <= 0)
         {
             return;
         }
@@ -515,7 +515,7 @@ static void *lua_output_thread(void *ptr)
         dragonfly_io_close(output->output);
     }
 
-    syslog(LOG_NOTICE, "%s exiting", output->tag);
+    if (output->tag) syslog(LOG_NOTICE, "%s exiting", output->tag);
     return (void *)NULL;
 }
 
@@ -537,7 +537,7 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
     while (g_running)
     {
 
-        if ((n = msgqueue_recv(analyzer->queue, buffer, _MAX_BUFFER_SIZE_)) < 0)
+        if ((n = msgqueue_recv(analyzer->queue, buffer, _MAX_BUFFER_SIZE_)) <= 0)
         {
             return;
         }
@@ -699,7 +699,7 @@ static void *lua_analyzer_thread(void *ptr)
     }
     lua_close(L);
 
-    syslog(LOG_NOTICE, "%s exiting", analyzer->tag);
+    if (analyzer->tag) syslog(LOG_NOTICE, "%s exiting", analyzer->tag);
     pthread_exit(NULL);
 }
 
@@ -718,7 +718,9 @@ void destroy_configuration()
     g_num_analyzer_threads = 0;
     g_num_input_threads = 0;
     g_num_output_threads = 0;
-    memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
+    //memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
+    //memset(g_input_list, 0, sizeof(g_input_list));
+    //memset(g_output_list, 0, sizeof(g_output_list));
 }
 /*
  * ---------------------------------------------------------------------------------------
@@ -866,8 +868,6 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
         {
             char analyzer_name[1024];
             snprintf(analyzer_name, sizeof(analyzer_name), "%s-%d", QUEUE_ANALYZER, i);
-            //fprintf (stderr,"%s: %i -------- %s\n", __FUNCTION__, __LINE__, analyzer_name);
-            g_analyzer_list[i].queue = msgqueue_create(analyzer_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
             for (int j = 0; j < MAX_WORKER_THREADS; j++)
             {
                 if (pthread_create(&(g_analyzer_thread[n++]), NULL, lua_analyzer_thread, (void *)&g_analyzer_list[i]) != 0)
@@ -879,7 +879,7 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
         }
     }
 
-    sleep(1);
+    sleep(2);
 
     if (chroot(dragonfly_analyzer_root) != 0)
     {
@@ -1027,9 +1027,9 @@ void shutdown_threads()
     {
         pthread_join(g_io_thread[n++], NULL);
     }
-
-    waitpid(g_analyzer_pid, NULL, 0);
-
+    int status;
+    waitpid(-1, &status, 0);
+    //waitpid(g_analyzer_pid, NULL, 0);
     destroy_message_queues();
     destroy_configuration();
 
@@ -1066,6 +1066,7 @@ void startup_threads(const char *dragonfly_root)
     }
     syslog(LOG_INFO, "root dir: %s\n", path);
     free(path);
+
     initialize_configuration(dragonfly_root);
     create_message_queues();
 
@@ -1118,11 +1119,6 @@ void startup_threads(const char *dragonfly_root)
                 }
             }
         }
-
-
-
-
-
 
         for (int i = 0; i < MAX_OUTPUT_STREAMS; i++)
         {

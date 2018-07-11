@@ -45,7 +45,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"filter.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -107,10 +107,6 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST0(const char *dragonfly_root)
 {
-	const char *analyzer_path = "./analyzer/analyzer.lua";
-	const char *input_path = "./etl/etl.lua";
-	const char *config_path = "./config/config.lua";
-
 	fprintf(stderr, "\n\n%s: parsing config.lua\n", __FUNCTION__);
 	fprintf(stderr, "-------------------------------------------------------\n");
 
@@ -123,21 +119,21 @@ void SELF_TEST0(const char *dragonfly_root)
 		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
+	fprintf(stderr, "%s: DRAGONFLY_ROOT: %s\n", __FUNCTION__, path);
 	free(path);
-	write_file(config_path, CONFIG_LUA);
-	write_file(input_path, INPUT_LUA);
-	write_file(analyzer_path, ANALYZER_LUA);
+	write_file(CONFIG_TEST_FILE, CONFIG_LUA);
+	write_file(FILTER_TEST_FILE, INPUT_LUA);
+	write_file(ANALYZER_TEST_FILE, ANALYZER_LUA);
 	/*
 	 * load configuration
 	 */
-	fprintf(stderr, "Loading configuration file...");
+	fprintf(stderr, "%s: Loading configuration file...", __FUNCTION__);
 	initialize_configuration(dragonfly_root);
 	fprintf(stderr, ".done.\n");
 
 	sleep(1);
 
-	fprintf(stderr, "Unloading configuration file...");
+	fprintf(stderr, "%s: Unloading configuration file...", __FUNCTION__);
 	destroy_configuration();
 	fprintf(stderr, ".done.\n");
 

@@ -44,7 +44,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"filter.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -100,20 +100,16 @@ static void write_file(const char *file_path, const char *content)
 void SELF_TEST2(const char *dragonfly_root)
 {
 #define MAX_TEST2_MESSAGES 10000
-	const char *analyzer_path = "./analyzer/analyzer.lua";
-	const char *input_path = "./etl/input.lua";
-	const char *config_path = "./config/config.lua";
-
 	fprintf(stderr, "\n\n%s: connecting to redis, sending %u ping messages, then disconnecting\n", __FUNCTION__, MAX_TEST2_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
 	 */
 
-	write_file(config_path, CONFIG_LUA);
-	write_file(input_path, INPUT_LUA);
-	write_file(analyzer_path, ANALYZER_LUA);
-
+	write_file(CONFIG_TEST_FILE, CONFIG_LUA);
+	write_file(FILTER_TEST_FILE, INPUT_LUA);
+	write_file(ANALYZER_TEST_FILE, ANALYZER_LUA);
+	
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 #ifdef _GNU_SOURCE
@@ -151,16 +147,16 @@ void SELF_TEST2(const char *dragonfly_root)
 
 		dragonfly_io_write(pump, buffer);
 	}
-	sleep(2);
+	sleep(1);
 	shutdown_threads();
 
 	dragonfly_io_close(pump);
 	closelog();
 
-	fprintf(stderr, "\nCleaning up files\n");
-	remove(config_path);
-	remove(input_path);
-	remove(analyzer_path);
+	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);
+	remove(CONFIG_TEST_FILE);
+	remove(FILTER_TEST_FILE);
+	remove(ANALYZER_TEST_FILE);
 	fprintf(stderr, "-------------------------------------------------------\n\n");
 }
 
