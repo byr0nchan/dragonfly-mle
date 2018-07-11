@@ -48,7 +48,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"tail://input.txt<\", script=\"etl.lua\"}\n"
+	"   { tag=\"input\", uri=\"tail://input.txt<\", script=\"filter.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -149,20 +149,16 @@ static void *writer_thread(void *ptr)
  */
 void SELF_TEST6(const char *dragonfly_root)
 {
-	const char *analyzer_path = "./analyzer/analyzer.lua";
-	const char *input_path = "./etl/etl.lua";
-	const char *config_path = "./config/config.lua";
-
 	fprintf(stderr, "\n\n%s: tailing %d messages from input to output.ipc\n", __FUNCTION__, MAX_TEST6_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
 	 */
 
-	write_file(config_path, CONFIG_LUA);
-	write_file(input_path, INPUT_LUA);
-	write_file(analyzer_path, ANALYZER_LUA);
-
+	write_file(CONFIG_TEST_FILE, CONFIG_LUA);
+	write_file(FILTER_TEST_FILE, INPUT_LUA);
+	write_file(ANALYZER_TEST_FILE, ANALYZER_LUA);
+	
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 #ifdef _GNU_SOURCE
@@ -216,9 +212,9 @@ void SELF_TEST6(const char *dragonfly_root)
 	closelog();
 
 	fprintf(stderr, "Cleaning up files\n");
-	remove(config_path);
-	remove(input_path);
-	remove(analyzer_path);
+	remove(CONFIG_TEST_FILE);
+	remove(FILTER_TEST_FILE);
+	remove(ANALYZER_TEST_FILE);
 	remove(INPUT_FILE);
 	fprintf(stderr, "-------------------------------------------------------\n\n");
 }

@@ -9,7 +9,7 @@ redis_port = "6379"
 -- Input queues/processors
 -- -----------------------------------------------------------
 inputs = {
-   { tag="eve", uri="tail:///opt/suricata/var/log/suricata/eve.json", script="eve-etl.lua"}
+   { tag="eve", uri="tail:///opt/suricata/var/log/suricata/eve.json", script="suricata-filter.lua"}
 }
 
 -- -----------------------------------------------------------

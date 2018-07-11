@@ -85,11 +85,11 @@ install:
 	@echo installing files
 	install -d $(DRAGONFLY_ROOT)/bin/ 
 	install -d $(DRAGONFLY_ROOT)/config/
-	install -d $(DRAGONFLY_ROOT)/etl/
+	install -d $(DRAGONFLY_ROOT)/filter/
 	install -d $(DRAGONFLY_ROOT)/analyzer/
 	install ./dragonfly-mle $(DRAGONFLY_ROOT)/bin/
 	install ./analyzer/* $(DRAGONFLY_ROOT)/analyzer/
-	install ./etl/* $(DRAGONFLY_ROOT)/etl/
+	install ./filter/* $(DRAGONFLY_ROOT)/filter/
 	install ./config/* $(DRAGONFLY_ROOT)/config/
 
 # ------------------------------------------------------------------

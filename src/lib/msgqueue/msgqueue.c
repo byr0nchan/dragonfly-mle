@@ -106,13 +106,14 @@ queue_t *msgqueue_create(const char *queue_name, int msg_max, long queue_max)
 
 	memset(q, 0, sizeof(queue_t));
 
+
 	q->queue_name = strndup(queue_name, NAME_MAX);
 	q->attr.mq_maxmsg = queue_max;
 	q->attr.mq_msgsize = msg_max;
 	q->attr.mq_curmsgs = 0;
 
 	/* create the message queue */
-	q->mq = mq_open(q->queue_name, O_CREAT | O_CLOEXEC | O_RDWR, 0644, NULL); //&q->attr);
+	q->mq = mq_open(q->queue_name, O_CREAT | O_RDWR, 0644, &q->attr);
 	if (q->mq < 0)
 	{
 		syslog(LOG_ERR, "mq_open() error: %s", strerror(errno));

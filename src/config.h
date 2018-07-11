@@ -30,7 +30,7 @@
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
 #define RUN_DIR "run"
 #define LOG_DIR "log"
-#define ETL_DIR "etl"
+#define FILTER_DIR "filter"
 #define ANALYZER_DIR "analyzer"
 #define CONFIG_DIR "config"
 #define CONFIG_FILE "config/config.lua"

@@ -131,7 +131,7 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
                 char script_path[PATH_MAX];
                 if (*path != '/')
                 {
-                    snprintf(script_path, PATH_MAX, "%s/%s", ETL_DIR, path);
+                    snprintf(script_path, PATH_MAX, "%s/%s", FILTER_DIR, path);
                 }
                 else
                 {

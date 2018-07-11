@@ -5,7 +5,8 @@ RUN apt-get install -y zlib1g-dev libluajit-5.1 liblua5.1-dev lua-socket libcurl
 #
 #
 #
-RUN git clone https://github.com/counterflow-ai/dragonfly-mle; \
+#RUN git clone https://github.com/counterflow-ai/dragonfly-mle; \
+RUN git clone -b devel https://github.com/counterflow-ai/dragonfly-mle; \
     cd dragonfly-mle/src; make ; make install
 RUN rm -rf dragonfly-mle
 #
