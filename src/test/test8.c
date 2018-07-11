@@ -87,7 +87,7 @@ static const char *ANALYZER_LUA =
 	"				tokens = split (line,\',\')\n"
 	"				if tokens[1] then\n"
 	"					assert(conn:command(\"HMSET\",tokens[2],\"dtg\", tokens[1], \"cat\", tokens[3]) == hiredis.status.OK)\n"
-	"					print (tokens[1], tokens[2], tokens[3])\n"
+	"					-- print (tokens[1], tokens[2], tokens[3])\n"
 	"				end\n"
 	"			end\n"
 	"		end\n"
@@ -164,10 +164,9 @@ void SELF_TEST8(const char *dragonfly_root)
 	msg[sizeof(msg) - 1] = '\0';
 	snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", (unsigned long) 1, msg);
 	dragonfly_io_write(pump, buffer);
-
-	sleep(2);
+	sleep(1);
 	shutdown_threads();
-	sleep(2);
+	sleep(1);
 
 	dragonfly_io_close(pump);
 	closelog();

@@ -147,7 +147,7 @@ void SELF_TEST2(const char *dragonfly_root)
 
 		dragonfly_io_write(pump, buffer);
 	}
-	sleep(2);
+	sleep(1);
 	shutdown_threads();
 
 	dragonfly_io_close(pump);

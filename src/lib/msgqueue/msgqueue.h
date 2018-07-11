@@ -6,10 +6,13 @@
 #include <mqueue.h>
 
 #define MAX_QUEUE_MSG_SIZE	4096
-
+#define MAX_MESSAGE_SIZE	8192
+#define QUANTUM_SLEEP		5000
+ 
 typedef struct
 {
 	volatile int cancel;
+	int pipefd [2];
 	mqd_t mq;
 	char *queue_name;
 	struct mq_attr attr;

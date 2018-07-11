@@ -109,8 +109,6 @@ void SELF_TEST1(const char *dragonfly_root)
 	startup_threads(dragonfly_root);
 	fprintf(stderr, ".done.\n");
 
-	sleep(2);
-
 	fprintf(stderr, "Shutting down threads....");
 	shutdown_threads();
 	fprintf(stderr, ".done.\n");

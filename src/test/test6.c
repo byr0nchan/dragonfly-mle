@@ -208,7 +208,6 @@ void SELF_TEST6(const char *dragonfly_root)
 	pthread_join(tinfo, NULL);
 	shutdown_threads();
 	dragonfly_io_close(input);
-	sleep (2);
 	closelog();
 
 	fprintf(stderr, "Cleaning up files\n");
