@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -48,30 +49,53 @@
  */
 static int tail_open_nonblock_file(const char *path)
 {
-        int fd = open(path, O_RDONLY);
+        char buffer[PATH_MAX];
+        strncpy(buffer, path, PATH_MAX);
+        int whence = strnlen(buffer, PATH_MAX);
+        if (whence > 0)
+                whence--;
+        if (buffer[whence] == '<')
+        {
+                buffer[whence] = '\0';
+                whence = SEEK_SET;
+                //fprintf(stderr, "%s: %s : <SEEK_SET\n", __FUNCTION__, path);
+        }
+        else if (buffer[whence] == '>')
+        {
+                buffer[whence] = '\0';
+                whence = SEEK_END;
+                //fprintf(stderr, "%s: %s : SEEK_END>\n", __FUNCTION__, path);
+        }
+        else
+        {
+                whence = SEEK_END;
+                //fprintf(stderr, "%s: %s : SEEK_END>\n", __FUNCTION__, path);
+        }
+
+        int fd = open(buffer, O_RDONLY);
         if (fd < 0)
         {
 
-                syslog(LOG_ERR, "unable to open: %s - %s\n", path, strerror(errno));
+                syslog(LOG_ERR, "unable to open: %s - %s\n", buffer, strerror(errno));
                 return -1;
         }
-        if (lseek(fd, 0, SEEK_END) < 0)
+        if (lseek(fd, 0, whence) < 0)
         {
                 close(fd);
-                syslog(LOG_ERR, "unable to seek: %s - %s\n", path, strerror(errno));
+                syslog(LOG_ERR, "unable to seek: %s - %s\n", buffer, strerror(errno));
                 return -1;
         }
         int fd_flags = fcntl(fd, F_GETFL);
         if (fd_flags < 0)
         {
                 close(fd);
-                syslog(LOG_ERR, "unable to fcntl: %s - %s\n", path, strerror(errno));
+                syslog(LOG_ERR, "unable to fcntl: %s - %s\n", buffer, strerror(errno));
                 return -1;
         }
         if (fcntl(fd, F_SETFL, fd_flags | O_NONBLOCK) < 0)
         {
                 close(fd);
-                syslog(LOG_ERR, "unable to fcntl: %s - %s\n", path, strerror(errno));
+                syslog(LOG_ERR, "unable to fcntl: %s - %s\n", buffer, strerror(errno));
                 return -1;
         }
         return fd;
@@ -134,6 +158,8 @@ DF_HANDLE *tail_open(const char *path, int spec)
  *
  * ---------------------------------------------------------------------------------------
  */
+//static unsigned long g_counter = 0;
+
 static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
 {
         time_t last_read_time = time(NULL);
@@ -171,7 +197,6 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
                         else
                         {
                                 syslog(LOG_ERR, "unable to read: %s\n", strerror(errno));
-
                                 return -1;
                         }
                 }
@@ -190,6 +215,7 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
                                 fprintf(stderr, "file was truncated\n");
 #endif
                                 lseek(dh->fd, 0, SEEK_SET);
+                                i=0;
                         }
                         lastFileSize = fdstat.st_size;
                         if (sleep_backoff < FIVE_SECONDS)
@@ -206,10 +232,17 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
                                 {
                                         // file was moved/renamed
 #ifdef __DEBUG3__
-                                        fprintf(stderr, "file moved or renamed\n");
+                                        fprintf(stderr, "%s: file moved or renamed\n", __FUNCTION__);
 #endif
                                         close(dh->fd);
-                                        dh->fd = -1;
+                                        char file_spec[PATH_MAX];
+                                        snprintf(file_spec, sizeof(file_spec), "%s<", dh->path);
+                                        if ((dh->fd = tail_open_nonblock_file(file_spec)) < 0)
+                                        {
+                                                return -1;
+                                        }
+                                        //fprintf(stderr, "%s: file reopened\n", __FUNCTION__);
+                                        i = 0;
                                 }
                         }
                         sleep(sleep_backoff);
@@ -217,6 +250,7 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
                 else if (buffer[i] == '\n')
                 {
                         end_of_line = 1;
+                        //fprintf (stderr,"%s: %lu\n", __FUNCTION__, g_counter++);
                 }
                 else
                 {
@@ -238,9 +272,9 @@ int tail_read_line(DF_HANDLE *dh, char *buffer, int max)
         do
         {
                 n = tail_next_line(dh, buffer, max);
-                // when n == 0, then skip to the next line 
+                // when n == 0, then skip to the next line
                 // because n ==0 is an empty string with just "\n"
-        } while (n==0);
+        } while (n == 0);
         return n;
 }
 

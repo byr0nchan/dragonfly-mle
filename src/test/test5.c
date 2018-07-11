@@ -23,8 +23,6 @@
 
 #ifdef RUN_UNIT_TESTS
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -47,11 +45,12 @@
 
 extern int g_running;
 
-#define MAX_TEST5_MESSAGES 1000000
+#define MAX_TEST5_MESSAGES 10000
+#define QUANTUM (MAX_TEST5_MESSAGES/10)
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -59,7 +58,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
+	"    { tag=\"log\", uri=\"ipc://test5.ipc\"},\n"
 	"}\n"
 	"\n";
 
@@ -68,14 +67,16 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
-	"function loop (msg)\n"
-	"   output_event (\"log\", msg)\n"
+	"function loop (tbl)\n"
+	"   -- print (tbl.msg)\n"
+	"   output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -102,8 +103,10 @@ static void write_file(const char *file_path, const char *content)
  */
 static void *consumer_thread(void *ptr)
 {
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "reader");
-	DF_HANDLE *pump_in = dragonfly_io_open("ipc://output.ipc", DF_IN);
+#endif
+	DF_HANDLE *pump_in = dragonfly_io_open("ipc://test5.ipc", DF_IN);
 	if (!pump_in)
 	{
 		fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
@@ -113,18 +116,15 @@ static void *consumer_thread(void *ptr)
 	clock_t last_time = clock();
 	/*
 	 * write messages walking the alphabet
-	 */
-	//fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
+	 */;
 	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
 	{
-		char msg_in[128];
+		char msg_in[1024];
 		msg_in[sizeof(msg_in) - 1] = '\0';
 		if (dragonfly_io_read(pump_in, msg_in, sizeof(msg_in)) <= 0)
 		{
 			break;
 		}
-		
-#define QUANTUM 100000
 		if ((i > 0) && (i % QUANTUM) == 0)
 		{
 			clock_t mark_time = clock();
@@ -142,9 +142,9 @@ static void *consumer_thread(void *ptr)
  */
 void SELF_TEST5(const char *dragonfly_root)
 {
-	const char *analyzer_path = "./scripts/analyzer.lua";
-	const char *input_path = "./scripts/input.lua";
-	const char *config_path = "./scripts/config.lua";
+	const char *analyzer_path = "./analyzer/analyzer.lua";
+	const char *input_path = "./etl/etl.lua";
+	const char *config_path = "./config/config.lua";
 
 	fprintf(stderr, "\n\n%s: pumping %d messages from output pipe to input pipe\n",
 			__FUNCTION__, MAX_TEST5_MESSAGES);
@@ -152,18 +152,17 @@ void SELF_TEST5(const char *dragonfly_root)
 	/*
 	 * generate lua scripts
 	 */
-	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
-	pthread_setname_np(pthread_self(), "dragonfly");
 
+#ifdef _GNU_SOURCE
+	pthread_setname_np(pthread_self(), "dragonfly");
+#endif
 	pthread_t tinfo;
 	if (pthread_create(&tinfo, NULL, consumer_thread, (void *)NULL) != 0)
 	{
@@ -185,17 +184,19 @@ void SELF_TEST5(const char *dragonfly_root)
 	/*
 	 * write messages walking the alphabet
 	 */
-	//fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
+
 	int mod = 0;
+	char buffer [1024];
 	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
 	{
 		char msg_out[128];
 		for (int j = 0; j < (sizeof(msg_out) - 2); j++)
 		{
 			msg_out[j] = 'A' + (mod % 48);
+			if (msg_out[j]=='\\') msg_out[j]=' ';
 			mod++;
 		}
-		msg_out[127] = '\0';
+		msg_out[sizeof(msg_out)-1] = '\0';
 
 		int len = strnlen(msg_out, sizeof(msg_out));
 		if (len <= 0)
@@ -203,7 +204,9 @@ void SELF_TEST5(const char *dragonfly_root)
 			fprintf(stderr, "%s:  length error!!!", __FUNCTION__);
 			abort();
 		}
-		dragonfly_io_write(pump_out, msg_out);
+//fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
+		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg_out);
+		dragonfly_io_write(pump_out, buffer);
 	}
 	pthread_join(tinfo, NULL);
 	shutdown_threads();

@@ -23,12 +23,11 @@
 
 #ifdef RUN_UNIT_TESTS
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -45,7 +44,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -53,7 +52,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://test.log\"},\n"
+	"    { tag=\"log\", uri=\"file://test8.log\"},\n"
 	"}\n"
 	"\n";
 
@@ -62,17 +61,18 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"filename = \"sslblacklist.csv\"\n"
 	"function split(s, delimiter)\n"
-    "		result = {}\n"
-    "		for match in (s..delimiter):gmatch(\"(.-)\"..delimiter) do\n"
-    "   		 table.insert(result, match)\n"
-    "		end\n"
-    "		return result\n"
+	"		result = {}\n"
+	"		for match in (s..delimiter):gmatch(\"(.-)\"..delimiter) do\n"
+	"   		 table.insert(result, match)\n"
+	"		end\n"
+	"		return result\n"
 	"end\n"
 	"function setup()\n"
 	"   http_get (\"https://sslbl.abuse.ch/blacklist/sslblacklist.csv\",filename)\n"
@@ -95,9 +95,8 @@ static const char *ANALYZER_LUA =
 	"		error(filename .. \": \" .. err)\n"
 	"	end\n"
 	"end\n"
-	"function loop (msg)\n"
-    "\n"
-	"\n"
+	"function loop (tbl)\n"
+	"   output_event (\"log\", tbl.msg)\n"
 	"end\n";
 
 /*
@@ -125,9 +124,9 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST8(const char *dragonfly_root)
 {
-	const char *analyzer_path = "./scripts/analyzer.lua";
-	const char *input_path = "./scripts/input.lua";
-	const char *config_path = "./scripts/config.lua";
+	const char *analyzer_path = "./analyzer/analyzer.lua";
+	const char *input_path = "./etl/etl.lua";
+	const char *config_path = "./config/config.lua";
 
 	fprintf(stderr, "\n\n%s: http_get followed by sending a message\n",
 			__FUNCTION__);
@@ -135,17 +134,15 @@ void SELF_TEST8(const char *dragonfly_root)
 	/*
 	 * generate lua scripts
 	 */
-	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
+#endif
 	startup_threads(dragonfly_root);
 
 	sleep(1);
@@ -158,18 +155,22 @@ void SELF_TEST8(const char *dragonfly_root)
 
 	sleep(1);
 	int mod = 0;
-	char msg [256];
-	for (int j = 0; j < (sizeof(msg) - 1); j++)
+	char msg[64];
+	char buffer[1024];
+	for (unsigned int j = 0; j < (sizeof(msg) - 1); j++)
 	{
 		msg[j] = 'A' + (mod % 48);
+		if (msg[j] == '\\')
+			msg[j] = ' ';
 		mod++;
 	}
 	msg[sizeof(msg) - 1] = '\0';
-	dragonfly_io_write(pump, msg);
+	snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", (unsigned long) 1, msg);
+	dragonfly_io_write(pump, buffer);
 
 	sleep(2);
 	shutdown_threads();
-	sleep (2);
+	sleep(2);
 
 	dragonfly_io_close(pump);
 	closelog();

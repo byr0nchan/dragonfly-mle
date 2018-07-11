@@ -1,5 +1,5 @@
--- instrumenting MLE with counters for performance metrics
 -- support for Kafka consumer (input) and producer (output)
+-- RESTful API for updating and monitoring model/scripts
 -- additonal ML examples
 
 

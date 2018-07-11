@@ -112,7 +112,7 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
             {
                 input_list[i].tag = strdup(lua_tostring(L, -1));
 #ifdef __DEBUG3__
-                fprintf(stderr, "  [INPUT] tag: %s, ", input_list[i].tag);
+                fprintf(stderr, "  [INPUTS] tag: %s, ", input_list[i].tag);
 #endif
             }
             break;
@@ -131,7 +131,7 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
                 char script_path[PATH_MAX];
                 if (*path != '/')
                 {
-                    snprintf(script_path, PATH_MAX, "%s/%s", SCRIPTS_DIR, path);
+                    snprintf(script_path, PATH_MAX, "%s/%s", ETL_DIR, path);
                 }
                 else
                 {
@@ -232,7 +232,7 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
                 char lua_analyzer[PATH_MAX];
                 if (*script_path != '/')
                 {
-                    snprintf(lua_analyzer, PATH_MAX, "%s/%s", SCRIPTS_DIR, script_path);
+                    snprintf(lua_analyzer, PATH_MAX, "%s/%s", ANALYZER_DIR, script_path);
                 }
                 else
                 {

@@ -25,49 +25,69 @@
 #define __CONFIG__
 
 #include "dragonfly-io.h"
-#include "pipe.h"
+#include "msgqueue.h"
 
 #define DRAGONFLY_ROOT "DRAGONFLY_ROOT"
 #define RUN_DIR "run"
 #define LOG_DIR "log"
-#define SCRIPTS_DIR "scripts"
-#define CONFIG_FILE "config.lua"
+#define ETL_DIR "etl"
+#define ANALYZER_DIR "analyzer"
+#define CONFIG_DIR "config"
+#define CONFIG_FILE "config/config.lua"
 
 #define USER_NOBODY "nobody"
-#define DRAGONFLY_ROOT_DIR "/opt/dragonfly"
 #define DRAGONFLY_LOG_DIR "log"
 #define DRAGONFLY_LOG_NAME "dragonfly.log"
 
+#define DRAGONFLY_ROOT_DIR "/usr/local/dragonfly-mle"
+#define TMP_DIR "/tmp/"
+
+typedef struct _MLE_STATS_
+{
+    unsigned long input;
+    unsigned long analysis;
+    unsigned long output;
+} MLE_STATS;
+
+#define QUEUE_INPUT "/input_queue"
 typedef struct _INPUT_CONFIG_
 {
     char *tag;
     char *uri;
     char *script;
     DF_HANDLE *input;
-    pipe_t *pipe;
+    queue_t *queue;
 } INPUT_CONFIG;
 
+#define QUEUE_OUTPUT "/output_queue"
 typedef struct _OUTPUT_CONFIG_
 {
     char *tag;
     char *uri;
     DF_HANDLE *output;
-    pipe_t *pipe;
+    queue_t *queue;
 } OUTPUT_CONFIG;
 
+#define QUEUE_ANALYZER "/analyzer_queue"
 typedef struct _ANALYZER_CONFIG_
 {
     char *tag;
     char *script;
-    pipe_t *pipe;
+    queue_t *queue;
 } ANALYZER_CONFIG;
 
+
+#define QUEUE_RESPONSE "/response_queue"
 typedef struct _RESPONDER_CONFIG_
 {
     char *tag;
     char *name;
     char *param;
 } RESPONDER_CONFIG;
+
+#include <luajit-2.0/lauxlib.h>
+#include <luajit-2.0/lualib.h>
+#include <luajit-2.0/luajit.h>
 
 int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max);
 void unload_analyzers_config(ANALYZER_CONFIG analyzer_list[], int max);

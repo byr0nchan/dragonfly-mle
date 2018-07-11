@@ -10,7 +10,6 @@ redis_port = "6379"
 -- -----------------------------------------------------------
 inputs = {
    { tag="eve", uri="tail:///opt/suricata/var/log/suricata/eve.json", script="eve-etl.lua"}
-  -- { tag="yaf", uri="file:///opt/yaf/yaf.log", script="yaf-input.lua"}
 }
 
 -- -----------------------------------------------------------
@@ -33,7 +32,7 @@ analyzers = {
    { tag="dns", script="example-dns.lua" },
    { tag="flow", script="example-flow.lua" },
    -- { tag="ja3", script="example-ja3.lua" },
-
+  
    -- ---------------------------------------------------------
    -- Machine learning examples using redis
    -- ---------------------------------------------------------

@@ -34,14 +34,17 @@
 #include <signal.h>
 #include <syslog.h>
 #include <pthread.h>
+#include <errno.h>
 
+#include "config.h"
 #include "test.h"
 
 #include "worker-threads.h"
 #include "dragonfly-io.h"
 extern int g_running;
+extern int g_flush_queue;
 
-#define WAIT_INTERVAL 4
+#define WAIT_INTERVAL 2
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -51,18 +54,37 @@ extern int g_running;
 void run_self_tests(const char *dragonfly_root)
 {
 	fprintf(stderr, "Running unit tests\n");
+    g_flush_queue=1;
 
-	char scripts_dir[PATH_MAX];
-	snprintf(scripts_dir, sizeof(scripts_dir), "%s/scripts", dragonfly_root);
-	mkdir(scripts_dir, 0755);
+	if (chdir(dragonfly_root) != 0)
+	{
+		syslog(LOG_ERR, "unable to chdir() to  %s", dragonfly_root);
+		exit(EXIT_FAILURE);
+	}
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	syslog(LOG_INFO, "DRAGONFLY_ROOT: %s\n", path);
+	free(path);
+
+	char analyzer_dir[PATH_MAX];
+	snprintf(analyzer_dir, sizeof(analyzer_dir), "%s/%s", dragonfly_root, ANALYZER_DIR);
+	mkdir(analyzer_dir, 0755);
+
+	char etl_dir[PATH_MAX];
+	snprintf(etl_dir, sizeof(etl_dir), "%s/%s", dragonfly_root, ETL_DIR);
+	mkdir(etl_dir, 0755);
+
+	char config_dir[PATH_MAX];
+	snprintf(config_dir, sizeof(config_dir), "%s/%s", dragonfly_root, CONFIG_DIR);
+	mkdir(config_dir, 0755);
 
 	char run_dir[PATH_MAX];
 	snprintf(run_dir, sizeof(run_dir), "%s/run", dragonfly_root);
 	mkdir(run_dir, 0755);
-
-	char log_dir[PATH_MAX];
-	snprintf(log_dir, sizeof(log_dir), "%s/log", dragonfly_root);
-	mkdir(log_dir, 0755);
 
 	SELF_TEST0(dragonfly_root);
 	sleep(WAIT_INTERVAL);
@@ -71,7 +93,7 @@ void run_self_tests(const char *dragonfly_root)
 	sleep(WAIT_INTERVAL);
 
 	SELF_TEST2(dragonfly_root);
-	sleep (WAIT_INTERVAL);
+	sleep(WAIT_INTERVAL);
 
 	SELF_TEST3(dragonfly_root);
 	sleep(WAIT_INTERVAL);
@@ -91,8 +113,9 @@ void run_self_tests(const char *dragonfly_root)
 	SELF_TEST8(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
-	rmdir(scripts_dir);
-	rmdir(log_dir);
+	rmdir(analyzer_dir);
+	rmdir(etl_dir);
+	rmdir(config_dir);
 	rmdir(run_dir);
 	exit(EXIT_SUCCESS);
 }

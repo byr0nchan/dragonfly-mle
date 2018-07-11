@@ -23,8 +23,6 @@
 
 #ifdef RUN_UNIT_TESTS
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -32,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <syslog.h>
@@ -43,9 +42,12 @@
 
 #include "test.h"
 
+#define MAX_TEST4_MESSAGES 10000
+#define QUANTUM (MAX_TEST4_MESSAGES / 10)
+
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -53,7 +55,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://test.log\"},\n"
+	"    { tag=\"log\", uri=\"file://test4.log\"},\n"
 	"}\n"
 	"\n";
 
@@ -62,14 +64,15 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
-	"function loop (msg)\n"
-	"   output_event (\"log\", msg)\n"
+	"function loop (tbl)\n"
+	"   output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -96,28 +99,27 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST4(const char *dragonfly_root)
 {
-#define MAX_TEST4_MESSAGES 10000
+
 	int halfway = (MAX_TEST4_MESSAGES / 2);
-	const char *analyzer_path = "./scripts/analyzer.lua";
-	const char *input_path = "./scripts/input.lua";
-	const char *config_path = "./scripts/config.lua";
+	const char *analyzer_path = "./analyzer/analyzer.lua";
+	const char *input_path = "./etl/etl.lua";
+	const char *config_path = "./config/config.lua";
 
 	fprintf(stderr, "\n\n%s: rotate file while pumping %d messages to test.log\n", __FUNCTION__, MAX_TEST4_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
 	 */
-	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
 
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
+#ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
+#endif
 	startup_threads(dragonfly_root);
 
 	sleep(1);
@@ -132,6 +134,7 @@ void SELF_TEST4(const char *dragonfly_root)
 	/*
 	 * write messages walking the alphabet
 	 */
+	char buffer[1024];
 	int mod = 0;
 	for (unsigned long i = 0; i < MAX_TEST4_MESSAGES; i++)
 	{
@@ -139,11 +142,14 @@ void SELF_TEST4(const char *dragonfly_root)
 		for (int j = 0; j < (sizeof(msg) - 1); j++)
 		{
 			msg[j] = 'A' + (mod % 48);
+			if (msg[j] == '\\')
+				msg[j] = ' ';
 			mod++;
 		}
 		msg[sizeof(msg) - 1] = '\0';
-		msg[sizeof(msg) - 2] = '\n';
-		if (dragonfly_io_write(pump, msg) < 0)
+		//msg[sizeof(msg) - 2] = '\n';
+		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg);
+		if (dragonfly_io_write(pump, buffer) < 0)
 		{
 			fprintf(stderr, "error pumping to \"ipc://input.ipc\"\n");
 			abort();
@@ -154,7 +160,7 @@ void SELF_TEST4(const char *dragonfly_root)
 		}
 	}
 	dragonfly_io_close(pump);
-	sleep (1);
+	sleep(1);
 	shutdown_threads();
 	closelog();
 

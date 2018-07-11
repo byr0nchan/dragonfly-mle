@@ -37,6 +37,7 @@
 #include <syslog.h>
 #include <pthread.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "worker-threads.h"
 #include "dragonfly-io.h"
@@ -44,7 +45,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -52,7 +53,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://output.log\"},\n"
+	"    { tag=\"log\", uri=\"file://test0.log\"},\n"
 	"}\n"
 	"\n";
 
@@ -68,7 +69,8 @@ static const char *INPUT_LUA =
 	"end\n"
 	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 // generate a test.lua analyzer
@@ -78,6 +80,7 @@ static const char *ANALYZER_LUA =
 	"function loop (msg)\n"
 	"  output_event (\"log\", msg)\n"
 	"end\n\n";
+
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -104,9 +107,9 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST0(const char *dragonfly_root)
 {
-	const char *analyzer_path = "./scripts/analyzer.lua";
-	const char *input_path = "./scripts/input.lua";
-	const char *config_path = "./scripts/config.lua";
+	const char *analyzer_path = "./analyzer/analyzer.lua";
+	const char *input_path = "./etl/etl.lua";
+	const char *config_path = "./config/config.lua";
 
 	fprintf(stderr, "\n\n%s: parsing config.lua\n", __FUNCTION__);
 	fprintf(stderr, "-------------------------------------------------------\n");
@@ -114,10 +117,14 @@ void SELF_TEST0(const char *dragonfly_root)
 	/*
 	 * generate lua scripts
 	 */
-	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
+	char *path = getcwd(NULL, PATH_MAX);
+	if (path == NULL)
+	{
+		syslog(LOG_ERR, "getcwd() error - %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+	free(path);
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);

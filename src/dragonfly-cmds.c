@@ -155,8 +155,12 @@ int dragonfly_http_get(lua_State *L)
         {
                 return luaL_error(L, "expecting exactly 2 arguments");
         }
+
         const char *url = luaL_checkstring(L, 1);
         const char *filename = luaL_checkstring(L, 2);
+//#ifdef __DEBUG__
+        fprintf (stderr,"%s: %s %s\n", __FUNCTION__, url, filename);
+//#endif
         if (http_get(url, filename) < 0)
         {
                 return luaL_error(L, "%s: failed", __FUNCTION__);

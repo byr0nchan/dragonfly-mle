@@ -21,19 +21,14 @@
  *
  */
 
-#ifndef __PARAM_H__
-#define __PARAM_H__
+#ifndef _IO_SYSLOG_H_
+#define _IO_SYSLOG_H_
 
-#define MAX_WORKER_THREADS 1
-#define MAX_ANALYZER_STREAMS 16
-#define MAX_INPUT_STREAMS (MAX_ANALYZER_STREAMS/2)
-#define MAX_OUTPUT_STREAMS (MAX_ANALYZER_STREAMS/2)
+/*
+ * syslog IO
+ */
 
-#define MAX_RESPONDER_COMMANDS 4
-
-#define MAX_QUEUE_LENGTH 8
-
-#define _MAX_BUFFER_SIZE_ 8192
-
+DF_HANDLE *syslog_open(const char *path, int spec);
+int syslog_write_message(DF_HANDLE *dh, char *buffer);
 
 #endif

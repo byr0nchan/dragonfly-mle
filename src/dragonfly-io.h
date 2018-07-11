@@ -24,6 +24,8 @@
 #ifndef _DRAGONFLY_IO_H_
 #define _DRAGONFLY_IO_H_
 
+#include <zlib.h>
+
 #define RUN_DIR "run"
 #define LOG_DIR "log"
 
@@ -32,20 +34,23 @@
 #define DF_ERR 4
 #define DF_CMD 8
 
+#define DF_OUT_SYSLOG_TYPE 0
 #define DF_IN_FILE_TYPE 1
 #define DF_OUT_FILE_TYPE 2
 #define DF_CLIENT_IPC_TYPE  3
 #define DF_SERVER_IPC_TYPE  4
 #define DF_IN_TAIL_TYPE 5
-#define DF_IN_KAFKA_TYPE 6
-#define DF_OUT_KAFKA_TYPE 7
-#define DF_CMD_SURICATA 8
-
+#define DF_IN_ZFILE_TYPE 6
+#define DF_OUT_ZFILE_TYPE 7
+#define DF_IN_KAFKA_TYPE 8
+#define DF_OUT_KAFKA_TYPE 9
+#define DF_CMD_SURICATA 10
 
 #define DF_MAX_BUFFER_LEN 2048
 
 typedef struct _DF_HANDLE_
-{
+{ 
+    gzFile zfp;
     FILE *fp;
     int fd;
     int io_type;

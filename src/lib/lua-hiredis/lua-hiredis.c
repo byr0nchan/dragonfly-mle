@@ -58,15 +58,16 @@ Peter Melnichenko <petjamelnik@yandex.ru>
 */
 
 #if defined(__cplusplus)
-extern "C" {
+extern "C"
+{
 #endif
 
-static char *g_lua_redis_host = '\0';
+static char *g_lua_redis_host = 0;
 static int g_lua_redis_port = 0;
 
 #include <stdlib.h>
 #include <string.h>
-#include <lauxlib.h>
+#include <luajit-2.0/lauxlib.h>
 #include <luajit-2.0/luajit.h>
 
 #if defined(__cplusplus)
@@ -101,6 +102,8 @@ typedef struct luahiredis_Enum
     const char *name;
     const int value;
 } luahiredis_Enum;
+
+static int lhiredis_connect(lua_State *L);
 
 static void reg_enum(lua_State *L, const luahiredis_Enum *e)
 {
@@ -228,6 +231,35 @@ typedef struct luahiredis_Connection
 {
     redisContext *pContext;
 } luahiredis_Connection;
+#ifdef COMMENT_OUT
+static redisContext *check_connection(lua_State *L, int idx)
+{
+
+    luahiredis_Connection *pConn = NULL;
+    do
+    {
+        pConn = (luahiredis_Connection *)luaL_checkudata(
+            L, idx, LUAHIREDIS_CONN_MT);
+        if (pConn == NULL)
+        {
+            if (lhiredis_connect(L) != 1)
+            {
+                luaL_error(L, "lua-hiredis error: connection error");
+                return NULL; /* Unreachable */
+            }
+        }
+        if (pConn->pContext == NULL)
+        {
+            if (lhiredis_connect(L) != 1)
+            {
+                luaL_error(L, "lua-hiredis error: connection error");
+                return NULL; /* Unreachable */
+            }
+        }
+    } while (pConn == NULL || pConn->pContext == NULL);
+    return pConn->pContext;
+}
+#endif
 
 static redisContext *check_connection(lua_State *L, int idx)
 {
@@ -524,7 +556,7 @@ static int lhiredis_connect(lua_State *L)
     lua_pushlightuserdata(L, (void *)L);
     lua_gettable(L, LUA_REGISTRYINDEX);
     int numConnections = lua_tonumber(L, -1);
-    //fprintf (stderr,"%s: number of connections: %i\n", __FUNCTION__,numConnections);
+    
     if (numConnections >= MAX_REDIS_CONNECTIONS)
     {
         /* TODO: Use errno if err is REDIS_ERR_IO */
@@ -686,17 +718,18 @@ static const struct luaL_Reg R[] =
         {NULL, NULL}};
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-LUALIB_API int luaopen_hiredis(lua_State *L, const char *redis_host, int redis_port)
-{
-    /*
+    LUALIB_API int luaopen_hiredis(lua_State *L, const char *redis_host, int redis_port)
+    {
+        /*
   * Register module
   */
-    luaL_register(L, "hiredis", E);
+        luaL_register(L, "hiredis", E);
 
-    /* Register module information 
+        /* Register module information 
   lua_pushliteral(L, LUAHIREDIS_VERSION);
   lua_setfield(L, -2, "_VERSION");
 
@@ -707,53 +740,53 @@ LUALIB_API int luaopen_hiredis(lua_State *L, const char *redis_host, int redis_p
   lua_setfield(L, -2, "_DESCRIPTION");
 */
 
-    /*
+        /*
   * Register enums
   */
-    reg_enum(L, Errors);
-    reg_enum(L, ReplyTypes);
+        reg_enum(L, Errors);
+        reg_enum(L, ReplyTypes);
 
-    /*
+        /*
   * Register constants
   */
-    push_new_const(L, "NIL", 3, REDIS_REPLY_NIL);
-    lua_setfield(L, -2, LUAHIREDIS_KEY_NIL);
+        push_new_const(L, "NIL", 3, REDIS_REPLY_NIL);
+        lua_setfield(L, -2, LUAHIREDIS_KEY_NIL);
 
-    lua_newtable(L); /* status */
+        lua_newtable(L); /* status */
 
-    if (luaL_newmetatable(L, LUAHIREDIS_STATUS_MT))
-    {
-        luaL_register(L, NULL, STATUS_MT);
-        lua_pushliteral(L, LUAHIREDIS_STATUS_MT);
-        lua_setfield(L, -2, "__metatable");
-    }
-    lua_setmetatable(L, -2);
+        if (luaL_newmetatable(L, LUAHIREDIS_STATUS_MT))
+        {
+            luaL_register(L, NULL, STATUS_MT);
+            lua_pushliteral(L, LUAHIREDIS_STATUS_MT);
+            lua_setfield(L, -2, "__metatable");
+        }
+        lua_setmetatable(L, -2);
 
-    lua_getfield(L, -1, "OK");
-    lua_setfield(L, -3, "OK"); /* hiredis.OK = status.OK */
-    lua_getfield(L, -1, "QUEUED");
-    lua_setfield(L, -3, "QUEUED"); /* hiredis.QUEUED = status.QUEUED */
-    lua_getfield(L, -1, "PONG");
-    lua_setfield(L, -3, "PONG"); /* hiredis.PONG = status.PONG */
+        lua_getfield(L, -1, "OK");
+        lua_setfield(L, -3, "OK"); /* hiredis.OK = status.OK */
+        lua_getfield(L, -1, "QUEUED");
+        lua_setfield(L, -3, "QUEUED"); /* hiredis.QUEUED = status.QUEUED */
+        lua_getfield(L, -1, "PONG");
+        lua_setfield(L, -3, "PONG"); /* hiredis.PONG = status.PONG */
 
-    lua_setfield(L, -2, "status"); /* hiredis.status = status */
+        lua_setfield(L, -2, "status"); /* hiredis.status = status */
 
-    /*
+        /*
   * Register functions
   */
-    lua_pushvalue(L, -1); /* Module table to be set as upvalue */
-    setfuncs(L, R, 1);
+        lua_pushvalue(L, -1); /* Module table to be set as upvalue */
+        setfuncs(L, R, 1);
 
-    g_lua_redis_host = strndup(redis_host, PATH_MAX);
-    g_lua_redis_port = redis_port;
+        g_lua_redis_host = strndup(redis_host, PATH_MAX);
+        g_lua_redis_port = redis_port;
 
-    /* Initialize the number of redis connection count */
-    lua_pushlightuserdata(L, (void *)L);
-    lua_pushnumber(L, 0);
-    lua_settable(L, LUA_REGISTRYINDEX);
+        /* Initialize the number of redis connection count */
+        lua_pushlightuserdata(L, (void *)L);
+        lua_pushnumber(L, 0);
+        lua_settable(L, LUA_REGISTRYINDEX);
 
-    return 1;
-}
+        return 1;
+    }
 
 #ifdef __cplusplus
 }

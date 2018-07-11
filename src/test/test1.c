@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <limits.h>
 #include <string.h>
 #include <unistd.h>
@@ -43,7 +44,7 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"input.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"etl.lua\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
@@ -51,23 +52,23 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://output.log\"},\n"
+	"    { tag=\"log\", uri=\"file://test1.log\"},\n"
 	"}\n"
 	"\n";
 
 static const char *INPUT_LUA =
 	"function setup()\n"
 	"end\n"
-	"\n"
 	"function loop(msg)\n"
-	"   analyze_event (\"test\", msg)\n"
+	"   local tbl = cjson.decode(msg)\n"
+	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
 	"function loop (msg)\n"
-	"  output_event (\"log\", msg)\n"
+	"  output_event (\"log\", \"test message\")\n"
 	"end\n\n";
 
 /*
@@ -95,19 +96,16 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST1(const char *dragonfly_root)
 {
-	const char *analyzer_path = "./scripts/analyzer.lua";
-	const char *input_path = "./scripts/input.lua";
-	const char *config_path = "./scripts/config.lua";
+	const char *analyzer_path = "./analyzer/analyzer.lua";
+	const char *input_path = "./etl/etl.lua";
+	const char *config_path = "./config/config.lua";
 
 	fprintf(stderr, "\n\n%s: starting threads then shutting down threads\n", __FUNCTION__);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
 	 */
-	assert(chdir(dragonfly_root) == 0);
-	char *path = get_current_dir_name();
-	fprintf(stderr, "DRAGONFLY_ROOT: %s\n", path);
-	free (path);
+
 	write_file(config_path, CONFIG_LUA);
 	write_file(input_path, INPUT_LUA);
 	write_file(analyzer_path, ANALYZER_LUA);
