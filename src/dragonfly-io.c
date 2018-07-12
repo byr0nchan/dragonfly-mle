@@ -38,6 +38,8 @@
 #include "io-zfile.h"
 #include "io-kafka.h"
 #include "io-syslog.h"
+#include "io-cron.h"
+
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -72,6 +74,10 @@ DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
         else if (strncmp("syslog://", uri, 9) == 0)
         {
                 return ipc_open(((const char *)uri + 9), spec);
+        }
+        else if (strncmp("cron://", uri, 7) == 0)
+        {
+                return cron_open(((const char *)uri + 7), spec);
         }
         else
         {
@@ -143,6 +149,10 @@ int dragonfly_io_read(DF_HANDLE *dh, char *buffer, int len)
         else if (dh->io_type == DF_IN_KAFKA_TYPE)
         {
                 return kafka_read_message(dh, buffer, len);
+        }
+        else if (dh->io_type == DF_IN_CRON_TYPE)
+        {
+                return cron_poll(dh, buffer, len);
         }
         return -1;
 }
@@ -221,6 +231,10 @@ void dragonfly_io_close(DF_HANDLE *dh)
         else if (dh->io_type == DF_IN_KAFKA_TYPE)
         {
                 return kafka_close(dh);
+        }
+        else if (dh->io_type == DF_IN_CRON_TYPE)
+        {
+                return cron_close(dh);
         }
         free(dh->path);
         dh->path = NULL;
