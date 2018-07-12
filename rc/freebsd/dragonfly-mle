@@ -1,0 +1,39 @@
+#!/bin/sh
+# $FreeBSD$
+
+# PROVIDE: dragonfly-mle
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+# Add the following lines to /etc/rc.conf to enable dragonfly-mle:
+#
+# dragonflymle_enable (bool):   Set to YES to enable dragonfly-mle
+#                            Default: NO
+#
+# --------------------------------------------------------------
+
+. /etc/rc.subr
+
+name="dragonflymle"
+rcvar=dragonflymle_enable
+
+start_precmd=dragonflymle_prestart
+command="/usr/local/dragonfly-mle/bin/dragonfly-mle"
+
+load_rc_config $name
+
+[ -z "$dragonflymle_enable" ]       && dragonflymle_enable="NO"
+[ -z "$dragonflymle_root" ]         && dragonflymle_root="/usr/local/dragonfly-mle"
+[ -z "$dragonflymle_pidfile" ]      && dragonflymle_pidfile="/var/run/dragonfly-mle.pid"
+
+command_args="-r $dragonflymle_root"
+pidfile=$dragonflymle_pidfile
+
+dragonflymle_prestart()
+{
+        if ! run_rc_command status > /dev/null; then
+                rm -f "$pidfile"
+        fi
+}
+
+run_rc_command "$1"
