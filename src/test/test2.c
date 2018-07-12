@@ -68,6 +68,10 @@ static const char *INPUT_LUA =
 const char *ANALYZER_LUA =
 	"function setup()\n"
 	"  conn = assert(hiredis.connect())\n"
+	"   host = dnslookup(\"www.counterflowai.com\")\n"
+	"   for _, entry in ipairs(host) do\n"
+	"      print (entry)\n"
+	"    end\n"
 	"end\n"
 	"function loop (tbl)\n"
 	"   -- print (tbl.msg)\n"

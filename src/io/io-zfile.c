@@ -203,7 +203,10 @@ int zfile_rotate(DF_HANDLE *dh)
  */
 void zfile_close(DF_HANDLE *dh)
 {
-        gzclose(dh->zfp);
+        if (dh && dh->zfp)
+        {
+                gzclose(dh->zfp);
+        }
 }
 
 /*

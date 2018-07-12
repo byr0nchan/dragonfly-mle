@@ -31,6 +31,7 @@
 int dragonfly_date2epoch(lua_State *L);
 int dragonfly_output(lua_State *L);
 int dragonfly_http_get(lua_State *L);
+int dragonfly_dnslookup(lua_State *L);
 
 #endif
 

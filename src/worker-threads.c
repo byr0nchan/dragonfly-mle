@@ -312,7 +312,8 @@ static void *lua_flywheel_thread(void *ptr)
         lua_flywheel_loop(flywheel);
         dragonfly_io_close(flywheel->input);
     }
-    if (flywheel->tag) syslog(LOG_NOTICE, "%s exiting", flywheel->tag);
+    if (flywheel->tag)
+        syslog(LOG_NOTICE, "%s exiting", flywheel->tag);
     return (void *)NULL;
 }
 /*
@@ -452,7 +453,8 @@ static void *lua_input_thread(void *ptr)
     }
 
     lua_close(L);
-    if (input->tag) syslog(LOG_NOTICE, "%s exiting", input->tag);
+    if (input->tag)
+        syslog(LOG_NOTICE, "%s exiting", input->tag);
     return (void *)NULL;
 }
 
@@ -515,7 +517,8 @@ static void *lua_output_thread(void *ptr)
         dragonfly_io_close(output->output);
     }
 
-    if (output->tag) syslog(LOG_NOTICE, "%s exiting", output->tag);
+    if (output->tag)
+        syslog(LOG_NOTICE, "%s exiting", output->tag);
     return (void *)NULL;
 }
 
@@ -668,6 +671,9 @@ static void *lua_analyzer_thread(void *ptr)
         }
     }
 
+    lua_pushcfunction(L, dragonfly_dnslookup);
+    lua_setglobal(L, "dnslookup");
+
     lua_pushcfunction(L, dragonfly_http_get);
     lua_setglobal(L, "http_get");
 
@@ -699,7 +705,8 @@ static void *lua_analyzer_thread(void *ptr)
     }
     lua_close(L);
 
-    if (analyzer->tag) syslog(LOG_NOTICE, "%s exiting", analyzer->tag);
+    if (analyzer->tag)
+        syslog(LOG_NOTICE, "%s exiting", analyzer->tag);
     pthread_exit(NULL);
 }
 
@@ -862,6 +869,13 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
 {
     int n = 0;
 
+    if (0 && chroot(dragonfly_analyzer_root) != 0)
+    {
+        syslog(LOG_ERR, "unable to chroot() to : %s - %s\n", g_root_dir, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
+
     for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
     {
         if (g_analyzer_list[i].script != NULL)
@@ -878,15 +892,6 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
             }
         }
     }
-
-    sleep(2);
-
-    if (chroot(dragonfly_analyzer_root) != 0)
-    {
-        syslog(LOG_ERR, "unable to chroot() to : %s - %s\n", g_root_dir, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
 
     if (g_drop_priv)
     {
@@ -1051,7 +1056,7 @@ void startup_threads(const char *dragonfly_root)
 
     signal(SIGABRT, signal_abort);
     signal(SIGTERM, signal_term);
-	signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN);
 
     if (chdir(dragonfly_root) != 0)
     {
