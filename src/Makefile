@@ -3,13 +3,13 @@
 # ------------------------------------------------------------------
 
 # For FreeBSD
-#CC = cc
-#CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare 
+CC = cc
+CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare 
 #-DRUN_UNIT_TESTS -D__DEBUG__
 
 # For Linux
-CC = gcc
-CFLAGS = -O2 -Wall -march=native -Werror
+#CC = gcc
+#CFLAGS = -O2 -Wall -march=native -Werror
 
 INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp \
 	   -I./lib/lua-cjson -I./lib/lua-hiredis -I./lib/lua-cmsgpack
