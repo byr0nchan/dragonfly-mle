@@ -19,7 +19,7 @@ function loop(msg)
         if (eve.event_type=="alert") then
             analyze_event ("alert", msg)
         else    
-            analyzer_event("nsm", msg)
+            analyze_event("nsm", msg)
         end
     end
 end

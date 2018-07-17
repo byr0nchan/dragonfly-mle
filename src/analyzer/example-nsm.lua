@@ -15,5 +15,6 @@ end
 -- ----------------------------------------------
 function loop(msg)
 	local eve = cjson.decode(msg)
-	output_event ("log", eve)
+	eve["mle"] = true -- Add an annotation
+	output_event ("log", cjson.encode(eve))
 end
