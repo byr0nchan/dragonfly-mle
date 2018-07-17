@@ -1,6 +1,5 @@
 #!/bin/sh
 # $FreeBSD$
-
 # PROVIDE: dragonfly-mle
 # REQUIRE: DAEMON
 # BEFORE: LOGIN
@@ -11,29 +10,50 @@
 #                            Default: NO
 #
 # --------------------------------------------------------------
-
 . /etc/rc.subr
-
 name="dragonflymle"
 rcvar=dragonflymle_enable
-
-start_precmd=dragonflymle_prestart
-command="/usr/local/dragonfly-mle/bin/dragonfly-mle"
-
-load_rc_config $name
-
-[ -z "$dragonflymle_enable" ]       && dragonflymle_enable="NO"
+start_precmd="${name}_prestart"
+status_cmd="${name}_status"
+stop_cmd="${name}_stop"
+restart_cmd="${name}_restart"
+[ -z "$dragonflymle_enable" ]       && dragonflymle_enable="YES"
 [ -z "$dragonflymle_root" ]         && dragonflymle_root="/usr/local/dragonfly-mle"
 [ -z "$dragonflymle_pidfile" ]      && dragonflymle_pidfile="/var/run/dragonfly-mle.pid"
-
-command_args="-r $dragonflymle_root"
+command="/usr/sbin/daemon"
 pidfile=$dragonflymle_pidfile
-
+task="/usr/local/dragonfly-mle/bin/dragonfly-mle -r ${dragonflymle_root}"
+command_args="-p ${pidfile} ${task}"
 dragonflymle_prestart()
 {
-        if ! run_rc_command status > /dev/null; then
-                rm -f "$pidfile"
-        fi
+    if ! run_rc_command status > /dev/null; then
+        rm -f "$pidfile"
+    fi
 }
-
+dragonflymle_status()
+{
+    if [ -e ${pidfile} ]; then
+        echo ${name} is running...
+    else
+        echo ${name} is not running.
+    fi
+}
+dragonflymle_stop()
+{
+    if [ -f ${pidfile} ]; then
+        cat $pidfile | xargs kill
+        rm -f ${pidfile}
+    fi
+}
+dragonflymle_restart()
+{
+    if ! run_rc_command status | grep 'not'; then
+        dragonflymle_stop
+        sleep 2
+        run_rc_command start
+    else
+        run_rc_command start
+    fi
+}
+load_rc_config $name
 run_rc_command "$1"
