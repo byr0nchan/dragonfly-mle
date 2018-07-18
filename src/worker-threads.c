@@ -89,7 +89,18 @@ static RESPONDER_CONFIG g_responder_list[MAX_RESPONDER_COMMANDS];
 static ANALYZER_CONFIG g_analyzer_list[MAX_ANALYZER_STREAMS];
 
 static pthread_t g_io_thread[(MAX_INPUT_STREAMS * 2) + MAX_OUTPUT_STREAMS];
-static pthread_t g_analyzer_thread[MAX_ANALYZER_STREAMS];
+static pthread_t g_analyzer_thread[MAX_ANALYZER_STREAMS+1];
+
+typedef struct _timer_
+{
+    time_t epoch;
+    size_t length;
+    char *tag;
+    char *msgpack;
+    queue_t *queue;
+} TIMER;
+static pthread_mutex_t g_timer_lock = PTHREAD_MUTEX_INITIALIZER;
+static TIMER g_timer_list[MAX_ANALYZER_STREAMS];
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -143,6 +154,41 @@ void signal_log_rotate(int signum)
     {
         msgqueue_send(g_output_list[i].queue, ROTATE_MESSAGE, strlen(ROTATE_MESSAGE));
     }
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+int timer_event(lua_State *L)
+{
+    if (lua_gettop(L) != 3)
+    {
+        return luaL_error(L, "expecting exactly 3 arguments");
+    }
+    const char *tag = luaL_checkstring(L, 1);
+    const int future_secods = lua_tointeger(L, 2);
+    for (int i = 0; g_timer_list[i].tag != NULL; i++)
+    {
+        if (strcasecmp(tag, g_analyzer_list[i].tag) == 0)
+        {
+            mp_pack(L);
+            pthread_mutex_lock(&g_timer_lock);
+            if (g_timer_list[i].msgpack)
+            {
+                free(g_timer_list[i].msgpack);
+            }
+            const char *msgpack = lua_tolstring(L, 4, &g_timer_list[i].length);
+            g_timer_list[i].msgpack = strndup(msgpack, g_timer_list[i].length);
+            g_timer_list[i].epoch = (time(NULL) + future_secods);
+            g_timer_list[i].queue = g_analyzer_list[i].queue;
+            pthread_mutex_unlock(&g_timer_lock);
+            lua_pop(L, 1);
+            return 0;
+        }
+    }
+    return 0;
 }
 
 /*
@@ -235,6 +281,45 @@ int response_event(lua_State *L)
  *
  * ---------------------------------------------------------------------------------------
  */
+static void *lua_timer_thread(void *ptr)
+{
+    pthread_detach(pthread_self());
+#ifdef _GNU_SOURCE
+    pthread_setname_np(pthread_self(), "timer");
+#endif
+    syslog(LOG_NOTICE, "Running %s\n", "timer");
+    while (g_running)
+    {
+        sleep(1);
+        pthread_mutex_lock(&g_timer_lock);
+        for (int i = 0; g_timer_list[i].tag != NULL; i++)
+        {
+            if (g_timer_list[i].epoch > 0)
+            {
+                time_t now_time = time(NULL);
+                if (now_time >= g_timer_list[i].epoch)
+                {
+                    if (msgqueue_send(g_timer_list[i].queue, g_timer_list[i].msgpack, g_timer_list[i].length) < 0)
+                    {
+                        syslog(LOG_ERR, "%s:  msgqueue_send() error - %i", __FUNCTION__, (int)g_timer_list[i].length);
+                    }
+                    g_timer_list[i].epoch = 0;
+                    g_timer_list[i].length = 0;
+                    free(g_timer_list[i].msgpack);
+                }
+            }
+        }
+        pthread_mutex_unlock(&g_timer_lock);
+    }
+    syslog(LOG_NOTICE, "%s exiting", "timer");
+    return (void *)NULL;
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
 void lua_flywheel_loop(INPUT_CONFIG *flywheel)
 {
     time_t last_time = (time(NULL) - 360);
@@ -245,7 +330,7 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
     /*
      * Open file for logging event stats 
      */
-    snprintf(logFile, (sizeof(logFile) - 1), "%s/dragonfly-mle.log", g_log_dir);
+    snprintf(logFile, (sizeof(logFile) - 1), "%s/dragonfly-mle-stats.log", g_log_dir);
     FILE *log = fopen(logFile, "a");
     setvbuf(log, NULL, _IOLBF, 0);
 
@@ -653,7 +738,9 @@ static void *lua_analyzer_thread(void *ptr)
     /* register functions */
     lua_pushcfunction(L, output_event);
     lua_setglobal(L, "output_event");
-
+    
+    lua_pushcfunction(L, timer_event);
+    lua_setglobal(L, "timer_event");
     /*
      * Initialize responders commands;
      */
@@ -725,9 +812,9 @@ void destroy_configuration()
     g_num_analyzer_threads = 0;
     g_num_input_threads = 0;
     g_num_output_threads = 0;
-    //memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
-    //memset(g_input_list, 0, sizeof(g_input_list));
-    //memset(g_output_list, 0, sizeof(g_output_list));
+    memset(g_analyzer_list, 0, sizeof(g_analyzer_list));
+    memset(g_input_list, 0, sizeof(g_input_list));
+    memset(g_output_list, 0, sizeof(g_output_list));
 }
 /*
  * ---------------------------------------------------------------------------------------
@@ -876,8 +963,10 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
     }
     syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
 
+
     for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
     {
+        g_timer_list[i].tag = strdup(g_analyzer_list[i].tag);
         if (g_analyzer_list[i].script != NULL)
         {
             char analyzer_name[1024];
@@ -891,6 +980,15 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
                 }
             }
         }
+    }
+
+    /*
+    * Create timer thread
+    */
+    if (pthread_create(&(g_analyzer_thread[n++]), NULL, lua_timer_thread, (void *)NULL) != 0)
+    {
+        syslog(LOG_ERR, "pthread_create() %s", strerror(errno));
+        exit(EXIT_FAILURE);
     }
 
     if (g_drop_priv)
