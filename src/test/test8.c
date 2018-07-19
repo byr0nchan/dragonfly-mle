@@ -164,10 +164,7 @@ void SELF_TEST8(const char *dragonfly_root)
 	msg[sizeof(msg) - 1] = '\0';
 	snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", (unsigned long) 1, msg);
 	dragonfly_io_write(pump, buffer);
-	sleep(2);
 	shutdown_threads();
-
-	sleep(2);
 	dragonfly_io_close(pump);
 	closelog();
 

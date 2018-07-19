@@ -215,7 +215,7 @@ static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
                                 fprintf(stderr, "file was truncated\n");
 #endif
                                 lseek(dh->fd, 0, SEEK_SET);
-                                i=0;
+                                i = 0;
                         }
                         lastFileSize = fdstat.st_size;
                         if (sleep_backoff < FIVE_SECONDS)
@@ -288,8 +288,11 @@ void tail_close(DF_HANDLE *dh)
 #ifdef __DEBUG3__
         fprintf(stderr, "%s: line %d\n", __FUNCTION__, __LINE__);
 #endif
-        close(dh->fd);
-        dh->fd = -1;
+        if (dh)
+        {
+                close(dh->fd);
+                dh->fd = -1;
+        }
 }
 
 /*

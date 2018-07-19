@@ -32,15 +32,18 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <errno.h>
 #include <syslog.h>
 #include <pthread.h>
-#include <errno.h>
 #include <assert.h>
 
 #include "worker-threads.h"
 #include "dragonfly-io.h"
 
 #include "test.h"
+
+#define MAX_TEST9_MESSAGES 10
+#define QUANTUM (MAX_TEST9_MESSAGES / 10)
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -52,32 +55,27 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://test2.log\"},\n"
+	"    { tag=\"log\", uri=\"file:///dev/null\"},\n"
 	"}\n"
 	"\n";
 
 static const char *INPUT_LUA =
 	"function setup()\n"
 	"end\n"
+	"\n"
 	"function loop(msg)\n"
-	"   -- print (msg)\n"
 	"   local tbl = cjson.decode(msg)\n"
-	"   analyze_event (\"test\", tbl)\n"
 	"end\n";
 
-const char *ANALYZER_LUA =
+static const char *ANALYZER_LUA =
 	"function setup()\n"
-	"  conn = assert(hiredis.connect())\n"
-	"   host = dnslookup(\"www.counterflowai.com\")\n"
-	"   for _, entry in ipairs(host) do\n"
-	"      print (entry)\n"
-	"    end\n"
+	"   tbl = {id=0, msg=\"1234567890\"}\n"
+	"   timer_event (\"test\", 5, tbl)\n"
 	"end\n"
 	"function loop (tbl)\n"
-	"   -- print (tbl.msg)\n"
-	"   assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
+	"  print (\"\ttimer: @ \"..tbl.msg)\n"
+	"  output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
-
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -101,10 +99,9 @@ static void write_file(const char *file_path, const char *content)
  *
  * ---------------------------------------------------------------------------------------
  */
-void SELF_TEST2(const char *dragonfly_root)
+void SELF_TEST9(const char *dragonfly_root)
 {
-#define MAX_TEST2_MESSAGES 10000
-	fprintf(stderr, "\n\n%s: connecting to redis, sending %u ping messages, then disconnecting\n", __FUNCTION__, MAX_TEST2_MESSAGES);
+	fprintf(stderr, "\n\n%s: pumping %d timer-driven messages to /dev/null\n", __FUNCTION__, MAX_TEST9_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
@@ -113,7 +110,7 @@ void SELF_TEST2(const char *dragonfly_root)
 	write_file(CONFIG_TEST_FILE, CONFIG_LUA);
 	write_file(FILTER_TEST_FILE, INPUT_LUA);
 	write_file(ANALYZER_TEST_FILE, ANALYZER_LUA);
-	
+
 	signal(SIGPIPE, SIG_IGN);
 	openlog("dragonfly", LOG_PERROR, LOG_USER);
 #ifdef _GNU_SOURCE
@@ -122,39 +119,52 @@ void SELF_TEST2(const char *dragonfly_root)
 	startup_threads(dragonfly_root);
 
 	sleep(1);
+
 	DF_HANDLE *pump = dragonfly_io_open("ipc://input.ipc", DF_OUT);
 	if (!pump)
 	{
 		fprintf(stderr, "%s: dragonfly_io_open() failed.\n", __FUNCTION__);
-		abort();
+		return;
 	}
 
-	sleep(1);
-
-	long mod = 0;
+	/*
+	 * write messages walking the alphabet
+	 */
 	char buffer[1024];
-	for (unsigned long i = 0; i < MAX_TEST2_MESSAGES; i++)
+	clock_t last_time = clock();
+	int mod = 0;
+	for (unsigned long i = 0; i < MAX_TEST9_MESSAGES; i++)
 	{
-		char msg [64];
+		char msg[128];
 		for (int j = 0; j < (sizeof(msg) - 1); j++)
 		{
 			msg[j] = 'A' + (mod % 48);
-			if (msg[j]=='\\') msg[j]='*';
+			if (msg[j] == '\\')
+				msg[j] = ' ';
 			mod++;
 		}
 		msg[sizeof(msg) - 1] = '\0';
+		//msg[sizeof(msg) - 2] = '\n';
 		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg);
-		if (i && (i % 1000) == 0)
+		if (dragonfly_io_write(pump, buffer) < 0)
 		{
-			fprintf(stderr, "\t%lu redis pings\n", i);
+			fprintf(stderr, "error pumping to \"ipc://input.ipc\"\n");
+			abort();
 		}
 
-		dragonfly_io_write(pump, buffer);
+		if ((i > 0) && (i % QUANTUM) == 0)
+		{
+			clock_t mark_time = clock();
+			double elapsed_time = ((double)(mark_time - last_time)) / CLOCKS_PER_SEC; // in seconds
+			double ops_per_sec = QUANTUM / elapsed_time;
+			fprintf(stderr, "\t%6.2f/sec\n", ops_per_sec);
+			last_time = mark_time;
+		}
+		sleep (1);
 	}
+	dragonfly_io_close(pump);
 	sleep(1);
 	shutdown_threads();
-
-	dragonfly_io_close(pump);
 	closelog();
 
 	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);

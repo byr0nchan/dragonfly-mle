@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <limits.h>
+#include <netdb.h>
 
 #include <curl/curl.h>
 
@@ -97,9 +98,9 @@ static int http_get(const char *url, const char *filename)
 #ifdef __DEBUG__
                 fprintf(stderr, "%s: verifying peer certificate\n", __FUNCTION__);
 #endif
-      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
-    /*
+                /*
      * If the site you're connecting to uses a different host name that what
      * they have mentioned in their server certificate's commonName (or
      * subjectAltName) fields, libcurl will refuse to connect. You can skip
@@ -158,9 +159,9 @@ int dragonfly_http_get(lua_State *L)
 
         const char *url = luaL_checkstring(L, 1);
         const char *filename = luaL_checkstring(L, 2);
-//#ifdef __DEBUG__
-        fprintf (stderr,"%s: %s %s\n", __FUNCTION__, url, filename);
-//#endif
+        //#ifdef __DEBUG__
+        //fprintf(stderr, "%s: %s %s\n", __FUNCTION__, url, filename);
+        //#endif
         if (http_get(url, filename) < 0)
         {
                 return luaL_error(L, "%s: failed", __FUNCTION__);
@@ -184,6 +185,58 @@ int dragonfly_date2epoch(lua_State *L)
         const char *timestamp = luaL_checkstring(L, 1);
         strptime(timestamp, "%FT%T", &epoch);
         lua_pushnumber(L, mktime(&epoch));
+        return 1;
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+int dragonfly_dnslookup(lua_State *L)
+{
+        struct addrinfo hints, *infoptr;
+        if (lua_gettop(L) != 1)
+        {
+                return luaL_error(L, "expecting exactly 1 arguments");
+        }
+        const char *hostname = luaL_checkstring(L, 1);
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_DGRAM;
+
+        int result = getaddrinfo(hostname, NULL, &hints, &infoptr);
+        if (result)
+        {
+                char error[128];
+                snprintf(error, sizeof(error), "getaddrinfo: %s - %s\n", hostname, gai_strerror(result));
+                return luaL_error(L, error);
+        }
+
+        lua_newtable(L);
+
+        int i = 1;
+        struct addrinfo *res;
+        for (res = infoptr; res != NULL; res = res->ai_next)
+        {
+                char addr_buf[256];
+                memset(addr_buf, 0, sizeof(addr_buf));
+                if (res->ai_family == AF_INET)
+                {
+                        inet_ntop(AF_INET, &((struct sockaddr_in *)res->ai_addr)->sin_addr, addr_buf, sizeof(addr_buf));
+                }
+                else
+                {
+                        inet_ntop(AF_INET6, &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr, addr_buf, sizeof(addr_buf));
+                }
+                lua_pushstring(L, addr_buf);
+                lua_rawseti(L, -2, i++);
+#ifdef __DEBUG3__
+                fprintf(stderr, "%s: %s\n", __FUNCTION__, addr_buf);
+#endif
+        }
+        freeaddrinfo(infoptr);
         return 1;
 }
 

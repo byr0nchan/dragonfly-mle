@@ -8,8 +8,13 @@ CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare
 #-DRUN_UNIT_TESTS -D__DEBUG__
 
 # For Linux
+<<<<<<< HEAD
 #CC = gcc
 #CFLAGS = -O2 -Wall -march=native -Werror
+=======
+CC = gcc
+CFLAGS = -O2 -g -Wall -march=native -Werror
+>>>>>>> devel
 
 INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp \
 	   -I./lib/lua-cjson -I./lib/lua-hiredis -I./lib/lua-cmsgpack
@@ -33,7 +38,7 @@ SRCS = main.c worker-threads.c dragonfly-io.c dragonfly-cmds.c config.c \
 # I/O modules
 # ------------------------------------------------------------------
 SRCS1 = io/io-file.c io/io-pipe.c io/io-tail.c io/io-kafka.c \
-        io/io-syslog.c io/io-zfile.c 
+        io/io-syslog.c io/io-zfile.c
 
 # ------------------------------------------------------------------
 # Responder modules
@@ -52,7 +57,7 @@ SRCS3 = lib/lua-hiredis/lua-hiredis.c lib/lua-cjson/lua-cjson.c \
 # ------------------------------------------------------------------
 SRCS4 = test/test.c test/test0.c test/test1.c test/test2.c \
 		test/test3.c test/test4.c test/test5.c test/test6.c \
-		test/test7.c test/test8.c
+		test/test7.c test/test8.c test/test9.c
 
 OBJS = $(SRCS:.c=.o) $(SRCS1:.c=.o) $(SRCS2:.c=.o) $(SRCS3:.c=.o) $(SRCS4:.c=.o)
 

@@ -103,7 +103,7 @@ void run_self_tests(const char *dragonfly_root)
 
 	SELF_TEST5(dragonfly_root);
 	sleep(WAIT_INTERVAL);
-*/
+
 	SELF_TEST6(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
@@ -111,6 +111,10 @@ void run_self_tests(const char *dragonfly_root)
 	sleep(WAIT_INTERVAL);
 
 	SELF_TEST8(dragonfly_root);
+	sleep(WAIT_INTERVAL);
+*/
+
+	SELF_TEST9(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
 	rmdir(analyzer_dir);

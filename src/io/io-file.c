@@ -73,23 +73,23 @@ DF_HANDLE *file_open(const char *path, int spec)
         else if ((spec & DF_OUT) == DF_OUT)
         {
                 char mode[8];
-          
+
                 int last = strnlen(file_path, PATH_MAX);
                 if (last > 0)
                         last--;
                 if (file_path[last] == '<')
                 {
                         file_path[last] = '\0';
-                        strcpy (mode, "w+");
+                        strcpy(mode, "w+");
                 }
                 else if (file_path[last] == '>')
                 {
                         file_path[last] = '\0';
-                        strcpy(mode,"a+");
+                        strcpy(mode, "a+");
                 }
                 else
                 {
-                        strcpy(mode,"a+");
+                        strcpy(mode, "a+");
                 }
 #ifdef __DEBUG3__
                 fprintf(stderr, "%s: [%s] (DF_OUT)\n", __FUNCTION__, path);
@@ -100,7 +100,7 @@ DF_HANDLE *file_open(const char *path, int spec)
                         syslog(LOG_ERR, "unable to open: %s - %s\n", path, strerror(errno));
                         return NULL;
                 }
-                setvbuf(fp, NULL, _IOLBF, 0); 
+                setvbuf(fp, NULL, _IOLBF, 0);
         }
         else
         {
@@ -211,10 +211,12 @@ int file_write_line(DF_HANDLE *dh, char *buffer)
  */
 void file_close(DF_HANDLE *dh)
 {
-        fflush(dh->fp);
-        int fsync(int fd);
-        fclose(dh->fp);
-        dh->fp = NULL;
+        if (dh && dh->fp)
+        {
+                fflush(dh->fp);
+                fclose(dh->fp);
+                dh->fp = NULL;
+        }
 }
 
 /*

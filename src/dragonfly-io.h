@@ -53,6 +53,8 @@ typedef struct _DF_HANDLE_
     gzFile zfp;
     FILE *fp;
     int fd;
+    int epoch;
+    int interval;
     int io_type;
     char *path;
     void *ptr;

@@ -3,8 +3,6 @@
 -- TLS look up -- https://notary.icsi.berkeley.edu/
 -- ----------------------------------------------
 
-local socket = require("socket")
-
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
@@ -37,15 +35,14 @@ function loop(msg)
 			if reply then
 				local a_record = sha1..".notary.icsi.berkeley.edu"
 				---print(">> TLS CHECKING: "..a_record)
-				local ip, status = socket.dns.toip(a_record) 
-				if not ip then
-					
+				local ip = dnslookup(a_record) 
+				if not ip[1] then
 					message = "time: "..eve.timestamp..", message: TLS lookup error - "..status
 					-- print (message)
 					output_event ("log", message)
 				else
-					-- print(">> TLS RESP: "..ip)
-					if ip == "127.0.0.2" or ip == "127.0.0.1" then
+					-- print(">> TLS RESP: "..ipi[1])
+					if ip[1] == "127.0.0.2" or ip[1] == "127.0.0.1" then
 						conn:command("sadd","tls:valid",sha1) 
 						conn:command ("expire", key,'300')
 					else

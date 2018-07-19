@@ -75,7 +75,7 @@ static int ipc_reopen(DF_HANDLE *dh)
                 {
                         syslog(LOG_ERR, "unable to bind socket %s: %s\n", dh->path, strerror(errno));
 #ifdef __DEBUG__
-                fprintf(stderr, "unable to bind socket %s: %s\n", dh->path, strerror(errno));
+                        fprintf(stderr, "unable to bind socket %s: %s\n", dh->path, strerror(errno));
 #endif
                         return -1;
                 }
@@ -257,7 +257,7 @@ int ipc_write_message(DF_HANDLE *dh, char *buffer)
         if (len == 0 || len == DF_MAX_BUFFER_LEN)
         {
 #ifdef __DEBUG__
-                        fprintf(stderr, "%s:%i %i length message\n", __FUNCTION__, __LINE__, len);
+                fprintf(stderr, "%s:%i %i length message\n", __FUNCTION__, __LINE__, len);
 #endif
                 return -1;
         }
@@ -278,16 +278,17 @@ int ipc_write_message(DF_HANDLE *dh, char *buffer)
                         case EINVAL:
                                 break;
                         default:
-                        syslog(LOG_ERR, "send error: %s", strerror(errno));
-                        perror("send");
-                        exit(EXIT_FAILURE);
+                                syslog(LOG_ERR, "send error: %s", strerror(errno));
+                                perror("send");
+                                exit(EXIT_FAILURE);
                         }
                 }
                 else if (n == 0 || errno == EIO)
                 {
                         ipc_reopen(dh);
                 }
-                else break;
+                else
+                        break;
         } while (1);
         return n;
 }
@@ -299,8 +300,11 @@ int ipc_write_message(DF_HANDLE *dh, char *buffer)
  */
 void ipc_close(DF_HANDLE *dh)
 {
-        close(dh->fd);
-        dh->fd = -1;
+        if (dh)
+        {
+                close(dh->fd);
+                dh->fd = -1;
+        }
 }
 
 /*
