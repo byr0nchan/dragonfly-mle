@@ -89,7 +89,7 @@ static RESPONDER_CONFIG g_responder_list[MAX_RESPONDER_COMMANDS];
 static ANALYZER_CONFIG g_analyzer_list[MAX_ANALYZER_STREAMS];
 
 static pthread_t g_io_thread[(MAX_INPUT_STREAMS * 2) + MAX_OUTPUT_STREAMS];
-static pthread_t g_analyzer_thread[MAX_ANALYZER_STREAMS+1];
+static pthread_t g_analyzer_thread[MAX_ANALYZER_STREAMS + 1];
 
 typedef struct _timer_
 {
@@ -168,21 +168,16 @@ int timer_event(lua_State *L)
         return luaL_error(L, "expecting exactly 3 arguments");
     }
     const char *tag = luaL_checkstring(L, 1);
-    const int future_secods = lua_tointeger(L, 2);
+    const int future_seconds = lua_tointeger(L, 2);
     for (int i = 0; g_timer_list[i].tag != NULL; i++)
     {
         if (strcasecmp(tag, g_analyzer_list[i].tag) == 0)
         {
             mp_pack(L);
             pthread_mutex_lock(&g_timer_lock);
-            if (g_timer_list[i].msgpack)
-            {
-                free(g_timer_list[i].msgpack);
-            }
             const char *msgpack = lua_tolstring(L, 4, &g_timer_list[i].length);
             g_timer_list[i].msgpack = strndup(msgpack, g_timer_list[i].length);
-            g_timer_list[i].epoch = (time(NULL) + future_secods);
-            g_timer_list[i].queue = g_analyzer_list[i].queue;
+            g_timer_list[i].epoch = (time(NULL) + future_seconds);
             pthread_mutex_unlock(&g_timer_lock);
             lua_pop(L, 1);
             return 0;
@@ -306,6 +301,7 @@ static void *lua_timer_thread(void *ptr)
                     g_timer_list[i].epoch = 0;
                     g_timer_list[i].length = 0;
                     free(g_timer_list[i].msgpack);
+                    g_timer_list[i].msgpack = NULL;
                 }
             }
         }
@@ -738,7 +734,7 @@ static void *lua_analyzer_thread(void *ptr)
     /* register functions */
     lua_pushcfunction(L, output_event);
     lua_setglobal(L, "output_event");
-    
+
     lua_pushcfunction(L, timer_event);
     lua_setglobal(L, "timer_event");
     /*
@@ -963,11 +959,9 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
     }
     syslog(LOG_INFO, "chroot: %s\n", g_root_dir);
 
-
     for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
     {
-        g_timer_list[i].tag = strdup(g_analyzer_list[i].tag);
-        if (g_analyzer_list[i].script != NULL)
+        if (g_analyzer_list[i].queue != NULL)
         {
             char analyzer_name[1024];
             snprintf(analyzer_name, sizeof(analyzer_name), "%s-%d", QUEUE_ANALYZER, i);
@@ -1173,9 +1167,15 @@ void startup_threads(const char *dragonfly_root)
     initialize_configuration(dragonfly_root);
     create_message_queues();
 
-#ifdef __DEBUG3__
-    fprintf(stderr, "%s\n", __FUNCTION__);
-#endif
+    memset(&g_timer_list, 0, sizeof(g_timer_list));
+    for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
+    {
+        if (g_analyzer_list[i].queue != NULL)
+        {
+            g_timer_list[i].tag = strdup(g_analyzer_list[i].tag);
+            g_timer_list[i].queue = g_analyzer_list[i].queue;
+        }
+    }
 
     int n = 0;
     if ((g_analyzer_pid = fork()) < 0)
