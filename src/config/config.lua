@@ -46,7 +46,7 @@ analyzers = {
 -- Output queues/processors
 -- -----------------------------------------------------------
 outputs = {
-    { tag="log", uri="file:///var/log/dragonfly-mle.log"},
+    { tag="log", uri="file://dragonfly-example.log"},
    -- { tag="tls", uri="file://tls-alerts.log"},
    -- { tag="dns", uri="file://dns-alerts.log"},
    -- { tag="flow", uri="file://flow-alerts.log"},
