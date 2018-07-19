@@ -101,7 +101,7 @@ static void write_file(const char *file_path, const char *content)
  */
 void SELF_TEST9(const char *dragonfly_root)
 {
-	fprintf(stderr, "\n\n%s: pumping %d timer-driven messages to /dev/null\n", __FUNCTION__, MAX_TEST9_MESSAGES);
+	fprintf(stderr, "\n\n%s: testing 5 sec timer-driven message to /dev/null\n", __FUNCTION__, MAX_TEST9_MESSAGES);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
