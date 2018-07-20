@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/mman.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -81,7 +82,9 @@ int g_redis_port = 6379;
 
 #define ROTATE_MESSAGE "+rotate+"
 
-static MLE_STATS g_stats;
+//TODO: move the following to shared memory
+static MLE_STATS *g_stats = NULL;
+
 static INPUT_CONFIG g_input_list[MAX_INPUT_STREAMS];
 static INPUT_CONFIG g_flywheel_list[MAX_INPUT_STREAMS];
 static OUTPUT_CONFIG g_output_list[MAX_OUTPUT_STREAMS];
@@ -91,16 +94,8 @@ static ANALYZER_CONFIG g_analyzer_list[MAX_ANALYZER_STREAMS];
 static pthread_t g_io_thread[(MAX_INPUT_STREAMS * 2) + MAX_OUTPUT_STREAMS];
 static pthread_t g_analyzer_thread[MAX_ANALYZER_STREAMS + 1];
 
-typedef struct _timer_
-{
-    time_t epoch;
-    size_t length;
-    char *tag;
-    char *msgpack;
-    queue_t *queue;
-} TIMER;
 static pthread_mutex_t g_timer_lock = PTHREAD_MUTEX_INITIALIZER;
-static TIMER g_timer_list[MAX_ANALYZER_STREAMS];
+static MLE_TIMER g_timer_list[MAX_ANALYZER_STREAMS];
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -326,7 +321,7 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
     /*
      * Open file for logging event stats 
      */
-    snprintf(logFile, (sizeof(logFile) - 1), "%s/dragonfly-mle-stats.log", g_log_dir);
+    snprintf(logFile, (sizeof(logFile) - 1), "%s/%s", g_log_dir, DRAGONFLY_LOG_STATS_NAME);
     FILE *log = fopen(logFile, "a");
     setvbuf(log, NULL, _IOLBF, 0);
 
@@ -334,6 +329,20 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
     {
         int len = 0;
         char buffer[_MAX_BUFFER_SIZE_];
+
+        /*
+         * log stats every minute
+         */
+        now_time = time(NULL);
+        if ((now_time - last_time) >= 360)
+        {
+            strftime(timestamp, sizeof(timestamp), "%FT%TZ", gmtime(&now_time));
+            snprintf(buffer, (sizeof(buffer) - 1),
+                     "{ \"time\": \"%s\", \"operations\": { \"input\": %lu, \"analyzer\":%lu, \"output\":%lu }}\n",
+                     timestamp, g_stats->input, g_stats->analysis, g_stats->output);
+            fputs(buffer, log);
+            last_time = now_time;
+        }
 
         if ((len = dragonfly_io_read(flywheel->input, buffer, (_MAX_BUFFER_SIZE_ - 1))) <= 0)
         {
@@ -344,19 +353,6 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
             return;
         }
         msgqueue_send(flywheel->queue, buffer, len);
-        /*
-         * log stats every minute
-         */
-        now_time = time(NULL);
-        if ((now_time - last_time) >= 360)
-        {
-            strftime(timestamp, sizeof(timestamp), "%FT%TZ", gmtime(&now_time));
-            snprintf(buffer, (sizeof(buffer) - 1),
-                     "{ \"time\": \"%s\", \"operations\": { \"input\": %lu, \"analyzer\":%lu, \"output\":%lu }}\n",
-                     timestamp, g_stats.input, g_stats.analysis, g_stats.output);
-            fputs(buffer, log);
-            last_time = now_time;
-        }
     }
     /*
      * log stats on exit
@@ -365,7 +361,7 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
     strftime(timestamp, sizeof(timestamp), "%FT%TZ", gmtime(&now_time));
     snprintf(buffer, (sizeof(buffer) - 1),
              "{ \"time\": \"%s\", \"operations\": { \"input\": %lu, \"analyzer\":%lu, \"output\":%lu }}\n",
-             timestamp, g_stats.input, g_stats.analysis, g_stats.output);
+             timestamp, g_stats->input, g_stats->analysis, g_stats->output);
     fputs(buffer, log);
     fclose(log);
 }
@@ -425,7 +421,7 @@ void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
             lua_pop(L, 1);
             exit(EXIT_FAILURE);
         }
-        g_stats.input++;
+        g_stats->input++;
     }
 }
 
@@ -568,7 +564,7 @@ void lua_output_loop(OUTPUT_CONFIG *output)
                 fprintf(stderr, "%s: output error\n", __FUNCTION__);
                 return;
             }
-            g_stats.output++;
+            g_stats->output++;
         }
     }
 }
@@ -641,7 +637,7 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
         }
         lua_pop(L, 1);
 
-        g_stats.analysis++;
+        g_stats->analysis++;
     }
 }
 
@@ -1126,10 +1122,11 @@ void shutdown_threads()
     }
     int status;
     waitpid(-1, &status, 0);
-    //waitpid(g_analyzer_pid, NULL, 0);
+   
     destroy_message_queues();
     destroy_configuration();
-
+    munmap(g_stats, sizeof(MLE_STATS));
+    g_stats = NULL;
     g_num_input_threads = 0;
     g_num_output_threads = 0;
     g_num_analyzer_threads = 0;
@@ -1167,6 +1164,9 @@ void startup_threads(const char *dragonfly_root)
     initialize_configuration(dragonfly_root);
     create_message_queues();
 
+    /*
+     * Initialize the timer list BEFORE forking
+     */
     memset(&g_timer_list, 0, sizeof(g_timer_list));
     for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
     {
@@ -1176,6 +1176,16 @@ void startup_threads(const char *dragonfly_root)
             g_timer_list[i].queue = g_analyzer_list[i].queue;
         }
     }
+    /*
+     * Initialize memory-map to be share by two process for
+     * maintaining stats
+     */
+    if ((g_stats = mmap(0, sizeof(4096), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0)) == MAP_FAILED)
+    {
+        syslog(LOG_ERR, "unable to mmap() MLE_STATS");
+        exit(EXIT_FAILURE);
+    }
+    memset (g_stats, 0, 4096);
 
     int n = 0;
     if ((g_analyzer_pid = fork()) < 0)

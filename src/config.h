@@ -37,10 +37,19 @@
 
 #define USER_NOBODY "nobody"
 #define DRAGONFLY_LOG_DIR "log"
-#define DRAGONFLY_LOG_NAME "dragonfly.log"
+#define DRAGONFLY_LOG_NAME "dragonfly-mle.log"
+#define DRAGONFLY_LOG_STATS_NAME "dragonfly-mle-stats.log"
 
 #define DRAGONFLY_ROOT_DIR "/usr/local/dragonfly-mle"
 #define TMP_DIR "/tmp/"
+typedef struct _MLE_TIMER_
+{
+    time_t epoch;
+    size_t length;
+    char *tag;
+    char *msgpack;
+    queue_t *queue;
+} MLE_TIMER;
 
 typedef struct _MLE_STATS_
 {
