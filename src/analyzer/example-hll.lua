@@ -60,7 +60,7 @@ function loop(msg)
         unique_src = {}
         unique_src["since"] = starttime
         unique_src["count"] = count
-        unique_src["source"] = "hll/hll.lua"
+        unique_src["source"] = "example-hll.lua"
 
         analytics["unique_src"] = unique_src
         eve["analytics"] = analytics
