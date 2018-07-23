@@ -17,56 +17,26 @@
 -- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
 -- OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
--- author: Randy Caldejon <rc@counterflowai.com>
--- ----------------------------------------------
+-- author: Andrew Fast <af@counterflowai.com>
+-- ----------------------------------------------)
 
 -- ----------------------------------------------
--- On setup, download domainblocklist from abuse.ch
--- On loop, check for membership in the list, and cache the results using Redis set
+-- Filter for passing flow data on to Median Absolute Deviation
 -- ----------------------------------------------
-filename = "baddomains.txt"
-file_url = "https://zeustracker.abuse.ch/blocklist.php?download=baddomains"
-redis_key = "bad.domain"
+
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
 function setup()
-	conn = hiredis.connect()
-	if not conn then
-		error ("Error connecting to the redis server")
-	end
-	if conn:command("PING") ~= hiredis.status.PONG then
-		error ("Unable to ping redis")		
-	end
-	http_get (file_url, filename)
-	local file, err = io.open(filename, 'rb')
-	if file then
-		conn:command("DEL",redis_key)
-		while true do
-			line = file:read()
-			if line ==nil then
-				break
-			elseif line ~='' and not line:find("^#") then
-				if (conn:command("SADD",redis_key,line)==1) then
-					print (line)
-				end
-			end
-		end
-	end
-	print (">>>> Bad DNS analyzer running")
+	print (">>>>>>>> Flow Passthrough Filter Running")
 end
 
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
 function loop(msg)
-	local eve = cjson.decode(msg)
-	if eve and eve.dns.type == 'answer' and eve.dns.rrtype == 'A' and eve.dns.rrname then
-		if conn:command("SISMEMBER",redis_key,eve.dns.rrname) == 1 then
-			message = "rrname: "..eve.dns.rrname..", rdata: "..eve.dns.rdata
-			-- print ("dns-alert: "..message)
-			output_event ("dns", message)
-		end
-	end
+    local eve = cjson.decode(msg)
+    if eve then
+        analyze_event("flow2", msg)
+    end
 end
-

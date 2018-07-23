@@ -17,56 +17,56 @@
 -- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
 -- OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
--- author: Randy Caldejon <rc@counterflowai.com>
+-- author: Andrew Fast <af@counterflowai.com>
 -- ----------------------------------------------
 
 -- ----------------------------------------------
--- On setup, download domainblocklist from abuse.ch
--- On loop, check for membership in the list, and cache the results using Redis set
+-- example-hll.lua
+-- Tracks number of distinct sources for each dest_ip using a HyperLogLog "sketch" data structure.
+-- HyperLogLog is included in the base functionality of Redis. It is a set-like data structure
+-- with constant memory and insert time, but that returns an approximate result with rate
+-- tied to the size of the hash being used.
 -- ----------------------------------------------
-filename = "baddomains.txt"
-file_url = "https://zeustracker.abuse.ch/blocklist.php?download=baddomains"
-redis_key = "bad.domain"
+
+
+local hash_id = "distinct_src_ip_counter"
+
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
 function setup()
-	conn = hiredis.connect()
-	if not conn then
-		error ("Error connecting to the redis server")
-	end
-	if conn:command("PING") ~= hiredis.status.PONG then
-		error ("Unable to ping redis")		
-	end
-	http_get (file_url, filename)
-	local file, err = io.open(filename, 'rb')
-	if file then
-		conn:command("DEL",redis_key)
-		while true do
-			line = file:read()
-			if line ==nil then
-				break
-			elseif line ~='' and not line:find("^#") then
-				if (conn:command("SADD",redis_key,line)==1) then
-					print (line)
-				end
-			end
-		end
-	end
-	print (">>>> Bad DNS analyzer running")
+    conn = hiredis.connect()
+    assert(conn:command("PING") == hiredis.status.PONG)
+    starttime = 0 --mle.epoch()
+    print (">>>>>>>>> Distinct IP analyzer")
 end
+
 
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
 function loop(msg)
-	local eve = cjson.decode(msg)
-	if eve and eve.dns.type == 'answer' and eve.dns.rrtype == 'A' and eve.dns.rrname then
-		if conn:command("SISMEMBER",redis_key,eve.dns.rrname) == 1 then
-			message = "rrname: "..eve.dns.rrname..", rdata: "..eve.dns.rdata
-			-- print ("dns-alert: "..message)
-			output_event ("dns", message)
-		end
+    local eve = cjson.decode(msg)
+    if eve and eve.event_type == 'flow' and (eve.proto=='TCP' or eve.proto=='UDP') then
+        
+        key = hash_id .. ":" ..eve.dest_ip
+        count = conn:command("PFCOUNT", key)
+
+        -- Create table to hold results of analysis, if it doesn't already exist
+        analytics = eve.analytics
+        if not analytics then
+            analytics = {}
+        end
+        unique_src = {}
+        unique_src["since"] = starttime
+        unique_src["count"] = count
+        unique_src["source"] = "hll/hll.lua"
+
+        analytics["unique_src"] = unique_src
+        eve["analytics"] = analytics
+
+        output_event("flow2", cjson.encode(eve))
+    else 
+		output_event("log", msg)
 	end
 end
-
