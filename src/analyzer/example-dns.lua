@@ -61,9 +61,9 @@ end
 -- ----------------------------------------------
 function loop(msg)
 	local eve = cjson.decode(msg)
-	if eve and eve.dns.type == 'answer' and eve.dns.rrtype == 'A' and eve.dns.rrname then
+	if eve and eve.dns.type == 'answer' and eve.dns.answers and eve.dns.rrname then
 		if conn:command("SISMEMBER",redis_key,eve.dns.rrname) == 1 then
-			message = "rrname: "..eve.dns.rrname..", rdata: "..eve.dns.rdata
+			message = "rrname: "..eve.dns.rrname..", rdata: ".. eve.dns.answers[1].rdata
 			-- print ("dns-alert: "..message)
 			output_event ("dns", message)
 		end
