@@ -50,6 +50,7 @@ function loop(msg)
     if eve and eve.event_type == 'flow' and (eve.proto=='TCP' or eve.proto=='UDP') then
         
         key = hash_id .. ":" ..eve.dest_ip
+        reply = conn:command("PFADD", key, eve.src_ip) -- PFADD returns 1 if at least one internal register has altered.
         count = conn:command("PFCOUNT", key)
 
         -- Create table to hold results of analysis, if it doesn't already exist

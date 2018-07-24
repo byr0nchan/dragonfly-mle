@@ -30,7 +30,7 @@
 -- ----------------------------------------------
 
 local open = io.open
-local dt = require('analyzer/dga/feature') -- contains data transformation functions
+local dt = require('analyzer/feature') -- contains data transformation functions
 
 -- ----------------------------------------------
 -- Transform takes a domain and converts it to the format needed for Redis-ML

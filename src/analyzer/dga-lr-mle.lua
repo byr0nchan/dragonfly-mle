@@ -29,7 +29,7 @@
 -- This analyzer demonstrates the Redis-ML Logistic Regression model
 -- ----------------------------------------------
 
-local dt = require('analyzer/dga/feature') -- contains data transformation helper functions
+local dt = require('analyzer/feature') -- contains data transformation helper functions
 
 -- ----------------------------------------------
 -- Transform takes a domain and converts it to the format needed for Redis-ML
