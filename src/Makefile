@@ -3,11 +3,11 @@
 # ------------------------------------------------------------------
 
 # For FreeBSD
-CC = cc
-CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare 
+#CC = cc
+#CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare 
 
-#CC = gcc
-#CFLAGS = -O2 -g -Wall -march=native -Werror
+CC = gcc
+CFLAGS = -O2 -g -Wall -march=native -Werror
 
 INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp \
 	   -I./lib/lua-cjson -I./lib/lua-hiredis -I./lib/lua-cmsgpack
@@ -50,7 +50,7 @@ SRCS3 = lib/lua-hiredis/lua-hiredis.c lib/lua-cjson/lua-cjson.c \
 # ------------------------------------------------------------------
 SRCS4 = test/test.c test/test0.c test/test1.c test/test2.c \
 		test/test3.c test/test4.c test/test5.c test/test6.c \
-		test/test7.c test/test8.c test/test9.c
+		test/test7.c test/test8.c test/test9.c test/test10.c
 
 OBJS = $(SRCS:.c=.o) $(SRCS1:.c=.o) $(SRCS2:.c=.o) $(SRCS3:.c=.o) $(SRCS4:.c=.o)
 

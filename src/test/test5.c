@@ -58,7 +58,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"ipc://test5.ipc\"},\n"
+	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
 	"}\n"
 	"\n";
 
@@ -68,15 +68,15 @@ static const char *INPUT_LUA =
 	"\n"
 	"function loop(msg)\n"
 	"   local tbl = cjson.decode(msg)\n"
-	"   analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
 	"function loop (tbl)\n"
-	"   -- print (tbl.msg)\n"
-	"   output_event (\"log\", tbl.msg)\n"
+	"  -- print (tbl.msg)\n"
+	"   dragonfly.output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -106,7 +106,7 @@ static void *consumer_thread(void *ptr)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "reader");
 #endif
-	DF_HANDLE *pump_in = dragonfly_io_open("ipc://test5.ipc", DF_IN);
+	DF_HANDLE *pump_in = dragonfly_io_open("ipc://output.ipc", DF_IN);
 	if (!pump_in)
 	{
 		fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
@@ -116,7 +116,7 @@ static void *consumer_thread(void *ptr)
 	clock_t last_time = clock();
 	/*
 	 * write messages walking the alphabet
-	 */;
+	 */
 	for (long i = 0; i < MAX_TEST5_MESSAGES; i++)
 	{
 		char msg_in[1024];
@@ -165,10 +165,8 @@ void SELF_TEST5(const char *dragonfly_root)
 		perror(__FUNCTION__);
 		abort();
 	}
-
+	sleep (1);
 	startup_threads(dragonfly_root);
-
-	sleep(1);
 
 	DF_HANDLE *pump_out = dragonfly_io_open("ipc://input.ipc", DF_OUT);
 	if (!pump_out)
@@ -177,6 +175,7 @@ void SELF_TEST5(const char *dragonfly_root)
 		abort();
 	}
 
+	sleep (1);
 	/*
 	 * write messages walking the alphabet
 	 */
@@ -200,8 +199,8 @@ void SELF_TEST5(const char *dragonfly_root)
 			fprintf(stderr, "%s:  length error!!!", __FUNCTION__);
 			abort();
 		}
-//fprintf (stderr,"%s:%i\n", __FUNCTION__, __LINE__);
 		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg_out);
+//fprintf (stderr,"%s: %i [%lu]\n", __FUNCTION__, __LINE__, i);
 		dragonfly_io_write(pump_out, buffer);
 	}
 	pthread_join(tinfo, NULL);

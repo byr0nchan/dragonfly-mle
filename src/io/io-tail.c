@@ -38,6 +38,7 @@
 #include <fcntl.h>
 
 #include "dragonfly-io.h"
+#include "config.h"
 
 #define TEN_SECONDS (10)
 #define FIVE_SECONDS (5)
@@ -58,25 +59,22 @@ static int tail_open_nonblock_file(const char *path)
         {
                 buffer[whence] = '\0';
                 whence = SEEK_SET;
-                //fprintf(stderr, "%s: %s : <SEEK_SET\n", __FUNCTION__, path);
         }
         else if (buffer[whence] == '>')
         {
                 buffer[whence] = '\0';
                 whence = SEEK_END;
-                //fprintf(stderr, "%s: %s : SEEK_END>\n", __FUNCTION__, path);
         }
         else
         {
                 whence = SEEK_END;
-                //fprintf(stderr, "%s: %s : SEEK_END>\n", __FUNCTION__, path);
         }
 
         int fd = open(buffer, O_RDONLY);
         if (fd < 0)
         {
 
-                syslog(LOG_ERR, "unable to open: %s - %s\n", buffer, strerror(errno));
+                syslog(LOG_ERR, "unable to tail open: %s - %s\n", buffer, strerror(errno));
                 return -1;
         }
         if (lseek(fd, 0, whence) < 0)
@@ -118,8 +116,8 @@ DF_HANDLE *tail_open(const char *path, int spec)
         }
         else
         {
-                /* default ipc directory */
-                snprintf(file_path, PATH_MAX, "%s/%s", LOG_DIR, path);
+                /* default log directory */
+                snprintf(file_path, PATH_MAX, "%s/%s", DRAGONFLY_LOG_DIR, path);
         }
 
         if ((spec & DF_IN) == DF_IN)
@@ -158,7 +156,6 @@ DF_HANDLE *tail_open(const char *path, int spec)
  *
  * ---------------------------------------------------------------------------------------
  */
-//static unsigned long g_counter = 0;
 
 static int tail_next_line(DF_HANDLE *dh, char *buffer, int len)
 {
