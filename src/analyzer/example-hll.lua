@@ -1,4 +1,4 @@
--- --------------------
+-- ----------------------------------------------
 -- Copyright 2018, CounterFlow AI, Inc. 
 -- 
 -- Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
@@ -18,26 +18,56 @@
 -- OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 -- author: Andrew Fast <af@counterflowai.com>
--- --------------------
-
--- ----------------------------------------------
--- A placehold analyzer for demonstrating splitting the alerts via a filter
--- See: ../filter/suricata-filter.lua for the rest of the example
 -- ----------------------------------------------
 
+-- ----------------------------------------------
+-- example-hll.lua
+-- Tracks number of distinct sources for each dest_ip using a HyperLogLog "sketch" data structure.
+-- HyperLogLog is included in the base functionality of Redis. It is a set-like data structure
+-- with constant memory and insert time, but that returns an approximate result with rate
+-- tied to the size of the hash being used.
+-- ----------------------------------------------
+
+
+local hash_id = "distinct_src_ip_counter"
 
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
 function setup()
-	print (">>>>Alert analyzer running")
+    conn = hiredis.connect()
+    assert(conn:command("PING") == hiredis.status.PONG)
+    starttime = 0 --mle.epoch()
+    print (">>>>>>>>> Distinct IP analyzer")
 end
+
 
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
 function loop(msg)
-	local eve = cjson.decode(msg)
-	output_event ("log", cjson.encode(eve))
-end
+    local eve = cjson.decode(msg)
+    if eve and eve.event_type == 'flow' and (eve.proto=='TCP' or eve.proto=='UDP') then
+        
+        key = hash_id .. ":" ..eve.dest_ip
+        reply = conn:command("PFADD", key, eve.src_ip) -- PFADD returns 1 if at least one internal register has altered.
+        count = conn:command("PFCOUNT", key)
 
+        -- Create table to hold results of analysis, if it doesn't already exist
+        analytics = eve.analytics
+        if not analytics then
+            analytics = {}
+        end
+        unique_src = {}
+        unique_src["since"] = starttime
+        unique_src["count"] = count
+        unique_src["source"] = "example-hll.lua"
+
+        analytics["unique_src"] = unique_src
+        eve["analytics"] = analytics
+
+        output_event("flow2", cjson.encode(eve))
+    else 
+		output_event("log", msg)
+	end
+end
