@@ -58,6 +58,22 @@ extern pthread_key_t g_threadContext;
  *
  * ---------------------------------------------------------------------------------------
  */
+int dragonfly_echo(lua_State *L)
+{
+        if (lua_gettop(L) != 1)
+        {
+                return luaL_error(L, "expecting exactly 1 arguments");
+        }
+        const char *msg = luaL_checkstring(L, 1);
+        fprintf(stderr, "%s\n", msg);
+        return 0;
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
 static size_t http_write_data(void *ptr, size_t size, size_t nmemb, void *stream)
 {
         size_t written = fwrite(ptr, size, nmemb, (FILE *)stream);
@@ -159,9 +175,9 @@ int dragonfly_http_get(lua_State *L)
 
         const char *url = luaL_checkstring(L, 1);
         const char *filename = luaL_checkstring(L, 2);
-        //#ifdef __DEBUG__
+#ifdef __DEBUG3__
         //fprintf(stderr, "%s: %s %s\n", __FUNCTION__, url, filename);
-        //#endif
+#endif
         if (http_get(url, filename) < 0)
         {
                 return luaL_error(L, "%s: failed", __FUNCTION__);
@@ -248,7 +264,6 @@ int dragonfly_dnslookup(lua_State *L)
  */
 int dragonfly_iprep(lua_State *L)
 {
-        // Is there a connection to the command socket?
         if (!g_suricata_command_path)
         {
 #ifdef __DEBUG__
@@ -290,8 +305,6 @@ int dragonfly_output(lua_State *L)
         const char *timestamp = luaL_checkstring(L, 2);
         const char *event = luaL_checkstring(L, 3);
         const char *message = luaL_checkstring(L, 4);
-
-        //OUTPUT_CONFIG *analyzer = (OUTPUT_CONFIG *)pthread_getspecific(g_threadContext);
 
         char buffer[4096];
         snprintf(buffer, sizeof(buffer) - 1,

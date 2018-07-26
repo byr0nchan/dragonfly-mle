@@ -46,9 +46,132 @@
 #include <luajit-2.0/lauxlib.h>
 #include <luajit-2.0/luajit.h>
 
+#include <hiredis/hiredis.h>
+
+#include "param.h"
 #include "config.h"
 #include "dragonfly-cmds.h"
 
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+
+static int load_redis_modules(lua_State *L, redisContext *pContext)
+{
+    int number_loaded = 0;
+    char *tag = NULL;
+    char *path = NULL;
+    static struct
+    {
+        const char *key;
+        int type;
+    } fields[] = {
+        {.key = "tag", .type = LUA_TSTRING},
+        {.key = "module", .type = LUA_TSTRING}};
+
+    lua_getglobal(L, "modules");
+    if (lua_type(L, -1) != LUA_TTABLE)
+    {
+#ifdef __DEBUG3__
+        fprintf(stderr, "%s: no redis modules listed\n", __FUNCTION__);
+#endif
+        syslog(LOG_INFO, "%s: no redis modules listed\n", __FUNCTION__);
+        return 0;
+    }
+    
+    luaL_checktype(L, -1, LUA_TTABLE);
+    for (int i = 0; i < MAX_REDIS_MODULES; i++)
+    {
+        lua_rawgeti(L, -1, i + 1);
+        if (lua_isnil(L, -1))
+        {
+            lua_pop(L, 1);
+            break;
+        }
+        luaL_checktype(L, -1, LUA_TTABLE);
+
+        for (int field_index = 0; field_index < 2; field_index++)
+        {
+            lua_getfield(L, -1, fields[field_index].key);
+            luaL_checktype(L, -1, fields[field_index].type);
+            switch (field_index)
+            {
+            case 0:
+            {
+                tag = strdup(lua_tostring(L, -1));
+#ifdef __DEBUG3__
+                fprintf(stderr, "%s: tag= %s, ", __FUNCTION__, input_list[i].tag);
+#endif
+            }
+            break;
+            case 1:
+            {
+                path = strndup(lua_tostring(L, -1), PATH_MAX);
+#ifdef __DEBUG3__
+                fprintf(stderr, "module=%s, ", __FUNCTION__, input_list[i].uri);
+#endif
+            }
+            break;
+            }
+            if (tag && path)
+            {
+                redisReply *reply = redisCommand(pContext, "MODULE LOAD %s", path);
+                if (reply && (reply->type != REDIS_REPLY_ERROR))
+                {
+#ifdef __DEBUG3__
+                    fprintf(stderr, "%s: %s\n", __FUNCTION__, path);
+#endif
+                    syslog(LOG_INFO, "%s: %s\n", __FUNCTION__, path);
+                }
+                else
+                {
+                    fprintf(stderr, "%s: failed to load module %s\n", __FUNCTION__, path);
+                    syslog(LOG_ERR, "%s: failed to load module %s", __FUNCTION__, path);
+                    /* code */
+                }
+                freeReplyObject(reply);
+                tag = NULL;
+                path = NULL;
+            }
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+    }
+    return number_loaded;
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+int load_redis(lua_State *L, const char *host, int port)
+{
+    redisContext *pContext = redisConnect(host, port);
+    if (!pContext || pContext->err)
+    {
+        if (pContext)
+        {
+            fprintf(stderr, "redisConnect() failed - %s", pContext->errstr);
+            syslog(LOG_ERR, "redisConnect() failed - %s", pContext->errstr);
+        }
+        else
+        {
+            fprintf(stderr, "redisConnect() failed - unable to connect to server");
+            syslog(LOG_ERR, "redisConnect() failed - unable to connect to server");
+        }
+        return -1;
+    }
+    int status = load_redis_modules(L, pContext);
+    if (!pContext)
+    {
+        return -1;
+    }
+    redisFree(pContext);
+    return status;
+}
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -61,11 +184,11 @@ void unload_inputs_config(INPUT_CONFIG input_list[], int max)
         if (input_list[i].tag)
         {
             free(input_list[i].tag);
-            input_list[i].tag=NULL;
+            input_list[i].tag = NULL;
             free(input_list[i].uri);
-            input_list[i].uri=NULL;
+            input_list[i].uri = NULL;
             free(input_list[i].script);
-            input_list[i].script=NULL;
+            input_list[i].script = NULL;
         }
     }
 }
@@ -172,9 +295,9 @@ void unload_analyzers_config(ANALYZER_CONFIG analyzer_list[], int max)
         if (analyzer_list[i].tag)
         {
             free(analyzer_list[i].tag);
-            analyzer_list[i].tag=NULL;
+            analyzer_list[i].tag = NULL;
             free(analyzer_list[i].script);
-            analyzer_list[i].script=NULL;
+            analyzer_list[i].script = NULL;
         }
     }
 }
@@ -273,9 +396,9 @@ void unload_outputs_config(OUTPUT_CONFIG output_list[], int max)
         if (output_list[i].tag)
         {
             free(output_list[i].tag);
-            output_list[i].tag=NULL;
+            output_list[i].tag = NULL;
             free(output_list[i].uri);
-            output_list[i].uri=NULL;
+            output_list[i].uri = NULL;
         }
     }
 }
@@ -287,6 +410,8 @@ void unload_outputs_config(OUTPUT_CONFIG output_list[], int max)
 int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
 {
     int number_of_outputs = 0;
+    char buffer[PATH_MAX];
+
     static struct
     {
         const char *key;
@@ -301,6 +426,19 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
         return number_of_outputs;
     }
     luaL_checktype(L, -1, LUA_TTABLE);
+
+    /* setup internal default output log */
+    snprintf(buffer, PATH_MAX, "file://%s", DRAGONFLY_DEFAULT_LOG);
+    output_list[DRAGONFLY_LOG_INDEX].tag = strdup(DRAGONFLY_LOG_TAG);
+    output_list[DRAGONFLY_LOG_INDEX].uri = strdup(buffer);
+    number_of_outputs++;
+    /* setup internal default stats output log */
+    snprintf(buffer, PATH_MAX, "file://%s", DRAGONFLY_STATS_LOG);
+    output_list[DRAGONFLY_STATS_INDEX].tag = strdup(DRAGONFLY_STATS_TAG);
+    output_list[DRAGONFLY_STATS_INDEX].uri = strdup(buffer);
+    number_of_outputs++;
+
+    int j = 2;
     for (int i = 0; i < max; i++)
     {
         lua_rawgeti(L, -1, i + 1);
@@ -319,7 +457,7 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
             {
             case 0:
             {
-                output_list[i].tag = strdup(lua_tostring(L, -1));
+                output_list[j].tag = strdup(lua_tostring(L, -1));
 #ifdef __DEBUG3__
                 fprintf(stderr, "  [OUTPUT] tag: %s, ", output_list[i].tag);
 #endif
@@ -328,7 +466,7 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
             case 1:
             {
                 number_of_outputs++;
-                output_list[i].uri = strndup(lua_tostring(L, -1), PATH_MAX);
+                output_list[j].uri = strndup(lua_tostring(L, -1), PATH_MAX);
 #ifdef __DEBUG3__
                 fprintf(stderr, "uri: %s\n", output_list[i].uri);
 #endif
@@ -338,9 +476,10 @@ int load_outputs_config(lua_State *L, OUTPUT_CONFIG output_list[], int max)
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
+        j++;
     }
     return number_of_outputs;
-} 
+}
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -353,9 +492,9 @@ void unload_responder_config(RESPONDER_CONFIG responder_list[], int max)
         if (responder_list[i].tag)
         {
             free(responder_list[i].tag);
-            responder_list[i].tag=NULL;
+            responder_list[i].tag = NULL;
             free(responder_list[i].param);
-            responder_list[i].param=NULL;
+            responder_list[i].param = NULL;
         }
     }
 }

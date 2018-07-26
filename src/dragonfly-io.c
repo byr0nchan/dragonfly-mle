@@ -76,7 +76,6 @@ DF_HANDLE *dragonfly_io_open(const char *uri, int spec)
         }
         else
         {
-
                 syslog(LOG_ERR, "%s: invalid file specifier", __FUNCTION__);
 #ifdef __DEBUG3__
                 fprintf(stderr, "%s (%i) invalid file specifier\n", __FUNCTION__, __LINE__);

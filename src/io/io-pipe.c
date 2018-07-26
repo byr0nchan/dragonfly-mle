@@ -40,7 +40,8 @@
 #include <time.h>
 #include <fcntl.h>
 
-#include <dragonfly-io.h>
+#include "dragonfly-io.h"
+#include "config.h"
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -151,7 +152,7 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
         else
         {
                 /* default ipc directory */
-                sprintf(addr.sun_path, "%s/%s", RUN_DIR, ipc_path);
+                sprintf(addr.sun_path, "%s/%s", DRAGONFLY_RUN_DIR, ipc_path);
         }
 
         int s;

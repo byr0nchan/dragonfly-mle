@@ -27,12 +27,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <errno.h>
 #include <syslog.h>
 #include <pthread.h>
 #include <assert.h>
@@ -41,6 +41,9 @@
 #include "dragonfly-io.h"
 
 #include "test.h"
+
+#define MAX_TEST10_MESSAGES 1000
+#define QUANTUM (MAX_TEST10_MESSAGES / 10)
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
@@ -52,7 +55,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://test8.log\"},\n"
+	"    { tag=\"log\", uri=\"file:///dev/null\"},\n"
 	"}\n"
 	"\n";
 
@@ -62,43 +65,17 @@ static const char *INPUT_LUA =
 	"\n"
 	"function loop(msg)\n"
 	"   local tbl = cjson.decode(msg)\n"
-	"   analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event(\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
-	"filename = \"sslblacklist.csv\"\n"
-	"function split(s, delimiter)\n"
-	"		result = {}\n"
-	"		for match in (s..delimiter):gmatch(\"(.-)\"..delimiter) do\n"
-	"   		 table.insert(result, match)\n"
-	"		end\n"
-	"		return result\n"
-	"end\n"
 	"function setup()\n"
-	"   http_get (\"https://sslbl.abuse.ch/blacklist/sslblacklist.csv\",filename)\n"
-	"   conn = assert(hiredis.connect())\n"
-	"   assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
-	"	local file, err = io.open(filename, \'rb\')\n"
-	"	if file then\n"
-	"		while true do\n"
-	"			line = file:read()\n"
-	"	   		if line and not line:find(\"^#\") then\n"
-	"				-- print(line)\n"
-	"				tokens = split (line,\',\')\n"
-	"				if tokens[1] then\n"
-	"					assert(conn:command(\"HMSET\",tokens[2],\"dtg\", tokens[1], \"cat\", tokens[3]) == hiredis.status.OK)\n"
-	"					-- print (tokens[1], tokens[2], tokens[3])\n"
-	"				end\n"
-	"			end\n"
-	"		end\n"
-	"	else\n"
-	"		error(filename .. \": \" .. err)\n"
-	"	end\n"
+	" 	dragonfly.echo(\"Hello world\")\n"
 	"end\n"
 	"function loop (tbl)\n"
-	"    dragonfly.output_event (\"log\", tbl.msg)\n"
-	"end\n";
-
+	"  dragonfly.log_event(tbl.msg)\n"
+	"  dragonfly.stats_event(\"test\")\n"
+	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -122,15 +99,14 @@ static void write_file(const char *file_path, const char *content)
  *
  * ---------------------------------------------------------------------------------------
  */
-void SELF_TEST8(const char *dragonfly_root)
+void SELF_TEST10(const char *dragonfly_root)
 {
-
-	fprintf(stderr, "\n\n%s: http_get followed by sending a message\n",
-			__FUNCTION__);
+	fprintf(stderr, "\n\n%s: logging to default log and stats file\n", __FUNCTION__);
 	fprintf(stderr, "-------------------------------------------------------\n");
 	/*
 	 * generate lua scripts
 	 */
+
 	write_file(CONFIG_TEST_FILE, CONFIG_LUA);
 	write_file(FILTER_TEST_FILE, INPUT_LUA);
 	write_file(ANALYZER_TEST_FILE, ANALYZER_LUA);
@@ -147,25 +123,46 @@ void SELF_TEST8(const char *dragonfly_root)
 	if (!pump)
 	{
 		fprintf(stderr, "%s: dragonfly_io_open() failed.\n", __FUNCTION__);
-		abort();
+		return;
 	}
 
-	sleep(1);
-	int mod = 0;
-	char msg[64];
+	/*
+	 * write messages walking the alphabet
+	 */
 	char buffer[1024];
-	for (unsigned int j = 0; j < (sizeof(msg) - 1); j++)
+	clock_t last_time = clock();
+	int mod = 0;
+	for (unsigned long i = 0; i < MAX_TEST10_MESSAGES; i++)
 	{
-		msg[j] = 'A' + (mod % 48);
-		if (msg[j] == '\\')
-			msg[j] = ' ';
-		mod++;
+		char msg[128];
+		for (int j = 0; j < (sizeof(msg) - 1); j++)
+		{
+			msg[j] = 'A' + (mod % 48);
+			if (msg[j] == '\\')
+				msg[j] = ' ';
+			mod++;
+		}
+
+		msg[sizeof(msg) - 1] = '\0';
+		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg);
+		if (dragonfly_io_write(pump, buffer) < 0)
+		{
+			fprintf(stderr, "error pumping to \"ipc://input.ipc\"\n");
+			abort();
+		}
+
+		if ((i > 0) && (i % QUANTUM) == 0)
+		{
+			clock_t mark_time = clock();
+			double elapsed_time = ((double)(mark_time - last_time)) / CLOCKS_PER_SEC; // in seconds
+			double ops_per_sec = QUANTUM / elapsed_time;
+			fprintf(stderr, "\t%6.2f/sec\n", ops_per_sec);
+			last_time = mark_time;
+		}
 	}
-	msg[sizeof(msg) - 1] = '\0';
-	snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", (unsigned long) 1, msg);
-	dragonfly_io_write(pump, buffer);
-	shutdown_threads();
 	dragonfly_io_close(pump);
+	sleep(1);
+	shutdown_threads();
 	closelog();
 
 	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);

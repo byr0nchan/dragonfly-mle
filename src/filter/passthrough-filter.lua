@@ -1,4 +1,4 @@
--- --------------------
+-- ----------------------------------------------
 -- Copyright 2018, CounterFlow AI, Inc. 
 -- 
 -- Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
@@ -18,26 +18,25 @@
 -- OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 -- author: Andrew Fast <af@counterflowai.com>
--- --------------------
+-- ----------------------------------------------)
 
 -- ----------------------------------------------
--- A placehold analyzer for demonstrating splitting the alerts via a filter
--- See: ../filter/suricata-filter.lua for the rest of the example
+-- Filter for passing flow data on to Median Absolute Deviation
 -- ----------------------------------------------
-
 
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
 function setup()
-	print (">>>>Alert analyzer running")
+	print (">>>>>>>> Flow Passthrough Filter Running")
 end
 
 -- ----------------------------------------------
 --
 -- ----------------------------------------------
 function loop(msg)
-	local eve = cjson.decode(msg)
-	output_event ("log", cjson.encode(eve))
+    local eve = cjson.decode(msg)
+    if eve then
+        analyze_event("flow2", msg)
+    end
 end
-

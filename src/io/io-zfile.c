@@ -42,8 +42,8 @@
 #include <assert.h>
 #include <zlib.h>
 
-#include <dragonfly-io.h>
-
+#include "dragonfly-io.h"
+#include "config.h"
 /*
  * ---------------------------------------------------------------------------------------
  *
@@ -62,7 +62,7 @@ DF_HANDLE *zfile_open(const char *ipc_path, int spec)
         else
         {
                 /* default ipc directory */
-                sprintf(zfile_path, "%s/%s", RUN_DIR, ipc_path);
+                sprintf(zfile_path, "%s/%s", DRAGONFLY_RUN_DIR, ipc_path);
         }
         if ((spec & DF_IN) == DF_IN)
         {

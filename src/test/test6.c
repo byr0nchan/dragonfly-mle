@@ -56,7 +56,7 @@ static const char *CONFIG_LUA =
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"ipc://test6.ipc\"},\n"
+	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
 	"}\n"
 	"\n";
 
@@ -66,14 +66,14 @@ static const char *INPUT_LUA =
 	"\n"
 	"function loop(msg)\n"
 	"   local tbl = cjson.decode(msg)\n"
-	"   analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
 	"function loop (tbl)\n"
-	"   output_event (\"log\", tbl.msg)\n"
+	"   dragonfly.output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -164,7 +164,7 @@ void SELF_TEST6(const char *dragonfly_root)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
 #endif
-	DF_HANDLE *input = dragonfly_io_open("ipc://test6.ipc", DF_IN);
+	DF_HANDLE *input = dragonfly_io_open("ipc://output.ipc", DF_IN);
 	if (!input)
 	{
 		perror(__FUNCTION__);

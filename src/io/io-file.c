@@ -35,6 +35,7 @@
 #include <limits.h>
 
 #include "dragonfly-io.h"
+#include "config.h"
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -53,20 +54,19 @@ DF_HANDLE *file_open(const char *path, int spec)
         }
         else
         {
-                /* default ipc directory */
-                snprintf(file_path, PATH_MAX, "%s/%s", LOG_DIR, path);
+                snprintf(file_path, PATH_MAX, "%s/%s", DRAGONFLY_LOG_DIR, path);
         }
 
         if ((spec & DF_IN) == DF_IN)
         {
 #ifdef __DEBUG3__
-                fprintf(stderr, "%s: %s (DF_IN)\n", __FUNCTION__, path);
+                fprintf(stderr, "%s: %s (DF_IN)\n", __FUNCTION__, file_path);
 #endif
 
                 io_type = DF_IN_FILE_TYPE;
                 if ((fp = fopen(file_path, "r")) == NULL)
                 {
-                        syslog(LOG_ERR, "unable to open: [%s] - %s\n", path, strerror(errno));
+                        syslog(LOG_ERR, "unable to open: [%s] for input - %s\n", file_path, strerror(errno));
                         return NULL;
                 }
         }
@@ -92,12 +92,12 @@ DF_HANDLE *file_open(const char *path, int spec)
                         strcpy(mode, "a+");
                 }
 #ifdef __DEBUG3__
-                fprintf(stderr, "%s: [%s] (DF_OUT)\n", __FUNCTION__, path);
+                fprintf(stderr, "%s: [%s] (DF_OUT)\n", __FUNCTION__, file_path);
 #endif
                 io_type = DF_OUT_FILE_TYPE;
                 if ((fp = fopen(file_path, mode)) == NULL)
                 {
-                        syslog(LOG_ERR, "unable to open: %s - %s\n", path, strerror(errno));
+                        syslog(LOG_ERR, "unable to open: [%s] for output - %s\n", file_path, strerror(errno));
                         return NULL;
                 }
                 setvbuf(fp, NULL, _IOLBF, 0);
