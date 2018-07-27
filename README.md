@@ -75,9 +75,11 @@ To operate successfully, MLE requires a root directory that includes the followi
 | Directory  | Description |
 | ------------- | ------------- |
 | ${DRAGONFLY_ROOT}  | base directory  |
-| ${DRAGONFLY_ROOT}/scripts  | location of scripts used by input and analyzer processors  |
+| ${DRAGONFLY_ROOT}/config  | location of config.lua file |
+| ${DRAGONFLY_ROOT}/filter  | directory for filtering scripts  |
+| ${DRAGONFLY_ROOT}/analyzer  | directory for analyzer scripts  |
 | ${DRAGONFLY_ROOT}/logs  | directory used by the output processor  |
-| ${DRAGONFLY_ROOT}/lib  | location of Redis loadable modules  |
+| ${DRAGONFLY_ROOT}/bin  | location of dragonfly-mle program  |
 
 
 #### QUICK START
@@ -94,19 +96,19 @@ For better grasp on how things function, be sure to study the Dockerfile, config
 #### EXAMPLES
 
 1. DNS processing
-2. 	Flow processing
-3. 	TLS processing
+2. Flow processing
+3. TLS processing
 
 #### BUILTIN MLE LUA FUNCTIONS
 
 	analyzer_event ()
 	output_event ()
+	timer_event ()
 	http_get ( )
 
 #### TODO
 - Implement Kafka consumer and producer
 - Implement Parquet output/index
-- Instrumentation of performance counters
 - documentation @ https://readme.io 
 
 #### LICENSE
