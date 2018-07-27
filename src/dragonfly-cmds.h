@@ -27,11 +27,10 @@
 #include <luajit-2.0/lauxlib.h>
 #include <luajit-2.0/luajit.h>
 
-
 int dragonfly_date2epoch(lua_State *L);
-int dragonfly_output(lua_State *L);
 int dragonfly_http_get(lua_State *L);
 int dragonfly_dnslookup(lua_State *L);
+int dragonfly_echo(lua_State *L);
 
 #endif
 

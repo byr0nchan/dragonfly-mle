@@ -39,5 +39,5 @@ void SELF_TEST6(const char *dragonfly_root);
 void SELF_TEST7(const char *dragonfly_root);
 void SELF_TEST8(const char *dragonfly_root);
 void SELF_TEST9(const char *dragonfly_root);
-
+void SELF_TEST10(const char *dragonfly_root);
 #endif

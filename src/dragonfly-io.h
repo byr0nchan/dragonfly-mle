@@ -26,9 +26,6 @@
 
 #include <zlib.h>
 
-#define RUN_DIR "run"
-#define LOG_DIR "log"
-
 #define DF_IN 1
 #define DF_OUT 2
 #define DF_ERR 4

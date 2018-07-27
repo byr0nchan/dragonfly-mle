@@ -70,11 +70,11 @@ static const char *INPUT_LUA =
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"   tbl = {id=0, msg=\"1234567890\"}\n"
-	"   timer_event (\"test\", 5, tbl)\n"
+	"   dragonfly.timer_event (\"test\", 5, tbl)\n"
 	"end\n"
 	"function loop (tbl)\n"
-	"  print (\"\ttimer: @ \"..tbl.msg)\n"
-	"  output_event (\"log\", tbl.msg)\n"
+	"   print (\"\ttimer: @ \"..tbl.msg)\n"
+	"   dragonfly.output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------

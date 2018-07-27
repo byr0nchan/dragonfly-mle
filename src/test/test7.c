@@ -67,14 +67,14 @@ static const char *INPUT_LUA =
 	"function loop(msg)\n"
 	"   -- print (msg)\n"
 	"   local tbl = cjson.decode(msg)\n"
-	"   analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
 	"function loop (tbl)\n"
-	"   output_event (\"log\", tbl.msg)\n"
+	"   dragonfly.output_event (\"log\", tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -123,7 +123,7 @@ static void *producer_thread(void *ptr)
 		if (i == truncate_record)
 		{
 			dragonfly_io_close(pump);
-			unlink ("log/input.txt");
+			unlink ("/var/log/dragonfly-mle/input.txt");
 			fprintf(stderr, "SELF_TEST7: truncating file input.txt\n");
 			pump = dragonfly_io_open("file://input.txt", DF_OUT);
 			if (!pump)
@@ -186,13 +186,15 @@ void SELF_TEST7(const char *dragonfly_root)
 		perror(__FUNCTION__);
 		abort();
 	}
-	startup_threads(dragonfly_root);
 	pthread_t tinfo;
 	if (pthread_create(&tinfo, NULL, producer_thread, (void *)NULL) != 0)
 	{
 		perror(__FUNCTION__);
 		abort();
 	}
+
+	startup_threads(dragonfly_root);
+
 
 	/*
 	 * read messages
