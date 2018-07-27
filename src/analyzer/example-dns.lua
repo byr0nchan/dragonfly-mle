@@ -65,7 +65,7 @@ function loop(msg)
 		if conn:command("SISMEMBER",redis_key,eve.dns.rrname) == 1 then
 			message = "rrname: "..eve.dns.rrname..", rdata: ".. eve.dns.answers[1].rdata
 			-- print ("dns-alert: "..message)
-			output_event ("dns", message)
+			dragonfly.output_event ("dns", message)
 		end
 	end
 end

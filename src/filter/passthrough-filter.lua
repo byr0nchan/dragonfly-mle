@@ -37,6 +37,6 @@ end
 function loop(msg)
     local eve = cjson.decode(msg)
     if eve then
-        analyze_event("flow2", msg)
+        dragonfly.analyze_event("flow2", msg)
     end
 end

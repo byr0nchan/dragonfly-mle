@@ -62,7 +62,7 @@ function loop(msg)
 				if not ip[1] then
 					message = "time: "..eve.timestamp..", message: TLS lookup error - "..status
 					-- print (message)
-					output_event ("log", message)
+					dragonfly.output_event ("log", message)
 				else
 					-- print(">> TLS RESP: "..ipi[1])
 					if ip[1] == "127.0.0.2" or ip[1] == "127.0.0.1" then
@@ -70,7 +70,7 @@ function loop(msg)
 						conn:command ("expire", key,'300')
 					else
 						message = "time:"..eve.timestamp..", dest ip:"..eve.dest_ip.."fingerprint:"..sha1..", issuer: "..eve.tls.issuerdn..", subject:"..eve.tls.subject.."sni:"..eve.tls.sni
-						output_event ("tls", message)
+						dragonfly.output_event ("tls", message)
 					end
 				end
 			end

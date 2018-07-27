@@ -66,8 +66,8 @@ function loop(msg)
         analytics["unique_src"] = unique_src
         eve["analytics"] = analytics
 
-        output_event("flow2", cjson.encode(eve))
+        dragonfly.output_event("flow2", cjson.encode(eve))
     else 
-		output_event("log", msg)
+		dragonfly.output_event("log", msg)
 	end
 end

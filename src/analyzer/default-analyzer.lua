@@ -34,6 +34,6 @@ end
 function loop(msg)
     local eve = cjson.decode(msg)
     if eve then
-        output_event("log", cjson.encode(eve))
+        dragonfly.output_event("log", cjson.encode(eve))
     end
 end

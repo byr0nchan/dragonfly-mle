@@ -38,6 +38,6 @@ end
 -- ----------------------------------------------
 function loop(msg)
 	local eve = cjson.decode(msg)
-	output_event ("log", cjson.encode(eve))
+	dragonfly.output_event ("log", cjson.encode(eve))
 end
 

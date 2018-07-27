@@ -64,7 +64,7 @@ function loop(msg)
 		if eve and eve.event_type == "flow" and conn:command("SISMEMBER",redis_key, eve.dest_ip) == 1 then
 			message = "time: "..eve.timestamp..", dest_ip: "..eve.dest_ip..", flow_id: "..eve.flow_id..", alerted: "..tostring(eve.flow.alerted)
 			print ("flow-alert: "..message)
-			output_event ("flow", message)
+			dragonfly.output_event ("flow", message)
 			--ip_reputation (eve.timestamp, "blacklist", eve.dns.rdata, 300)
 		end
 
