@@ -84,7 +84,7 @@ To operate successfully, MLE requires a root directory that includes the followi
 
 #### QUICK START
 
-Using Docker, this example assumes there is an instance of Suricata already insatlled and running on the host and it is logging to eve.json in directory /var/log/suricata/log.
+Using Docker, this example assumes there is an instance of Suricata already installed and running on the host and it is logging to eve.json in directory /var/log/suricata/log.
 
      $ git clone https://github.com/counterflow-ai/dragonfly-mle.git
      $ cd dragonfly-mle
