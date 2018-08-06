@@ -299,7 +299,7 @@ int output_event(lua_State *L)
 
         if (strcasecmp(name, g_output_list[i].tag) == 0)
         {
-//fprintf (stderr,"%s: %s\n", __FUNCTION__, message);
+            //fprintf (stderr,"%s: %s\n", __FUNCTION__, message);
             msgqueue_send(g_output_list[i].queue, message, len);
             return 0;
         }
@@ -402,12 +402,13 @@ static void *lua_timer_thread(void *ptr)
  */
 void lua_flywheel_loop(INPUT_CONFIG *flywheel)
 {
+    int n = 0;
+    char buffer[_MAX_BUFFER_SIZE_];
+
     while (g_running)
     {
-        int len = 0;
-        char buffer[_MAX_BUFFER_SIZE_];
 
-        if ((len = dragonfly_io_read(flywheel->input, buffer, (_MAX_BUFFER_SIZE_ - 1))) <= 0)
+        if ((n = dragonfly_io_read(flywheel->input, buffer, _MAX_BUFFER_SIZE_)) <= 0)
         {
             syslog(LOG_ERR, "%s: dragonfly_io_read() error", __FUNCTION__);
 #ifdef __DEBUG3__
@@ -415,7 +416,17 @@ void lua_flywheel_loop(INPUT_CONFIG *flywheel)
 #endif
             return;
         }
-        msgqueue_send(flywheel->queue, buffer, len);
+        else if (n == _MAX_BUFFER_SIZE_)
+        {
+            syslog(LOG_ERR, "%s: skipping message; exceeded buffer size of %d", __FUNCTION__, _MAX_BUFFER_SIZE_);
+#ifdef __DEBUG3__
+            fprintf(stderr, "%s: skipping message; exceeded buffer size of %d", __FUNCTION__, _MAX_BUFFER_SIZE_);
+#endif
+        }
+        else
+        {
+            msgqueue_send(flywheel->queue, buffer, n);
+        }
     }
 }
 
@@ -441,6 +452,12 @@ static void *lua_flywheel_thread(void *ptr)
         }
         lua_flywheel_loop(flywheel);
         dragonfly_io_close(flywheel->input);
+        
+        // if the source is a flat file, then exit
+        if (dragonfly_io_isfile(flywheel->input))
+        {
+            break;
+        }
     }
     if (flywheel->tag)
     {
@@ -1050,7 +1067,7 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
         exit(EXIT_FAILURE);
     }
 
-    if (0 && g_drop_priv)
+    if (g_drop_priv)
     {
         process_drop_privilege();
     }
@@ -1114,7 +1131,7 @@ void create_message_queues()
         {
             char output_name[PATH_MAX];
             snprintf(output_name, sizeof(output_name), "%s-%d", QUEUE_OUTPUT, i);
-//fprintf(stderr,"%s:%i %s => %s\n", __FUNCTION__, __LINE__, output_name, g_output_list[i].uri );
+            //fprintf(stderr,"%s:%i %s => %s\n", __FUNCTION__, __LINE__, output_name, g_output_list[i].uri );
             g_output_list[i].queue = msgqueue_create(output_name, _MAX_BUFFER_SIZE_, MAX_QUEUE_LENGTH);
         }
     }

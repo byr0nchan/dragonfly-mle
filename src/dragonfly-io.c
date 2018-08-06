@@ -162,17 +162,6 @@ int dragonfly_io_read_lines(DF_HANDLE *dh, char **buffer, int len, int max)
         {
                 return ipc_read_messages(dh, buffer, len, max);
         }
-        /*
-         * TODO: add multi-line read (vector) support for the types below
-         * 
-        else if (dh->io_type == DF_IN_TAIL_TYPE)
-        {
-                return tail_read_line(dh, buffer, len);
-        }
-        else if (dh->io_type == DF_IN_FILE_TYPE)
-        {
-                return file_read_line(dh, buffer, len);
-        }*/
         return -1;
 }
 /*
@@ -226,6 +215,22 @@ void dragonfly_io_close(DF_HANDLE *dh)
         dh->path = NULL;
         free(dh);
         dh = NULL;
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+int dragonfly_io_isfile(DF_HANDLE *dh)
+{
+        if (dh && 
+                ((dh->io_type == DF_OUT_FILE_TYPE)||
+                (dh->io_type == DF_IN_FILE_TYPE)))
+        {
+                return 1;
+        }
+        return 0;
 }
 
 /*

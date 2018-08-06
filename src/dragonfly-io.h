@@ -64,6 +64,7 @@ int dragonfly_io_read_lines(DF_HANDLE *dh, char *buffer[], int len, int max);
 void dragonfly_io_flush(DF_HANDLE *dh);
 void dragonfly_io_close(DF_HANDLE *dh);
 void dragonfly_io_rotate(DF_HANDLE *dh);
+int dragonfly_io_isfile(DF_HANDLE *dh);
 
 #endif
 

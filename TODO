@@ -1,6 +1,6 @@
--- support for Kafka consumer (input) and producer (output)
+-- Support for Kafka consumer (input) and producer (output)
 -- RESTful API for updating and monitoring model/scripts
--- additonal ML examples
--- expose a mle.table() with custom functions
+-- Additonal ML examples
+
 
 

@@ -33,6 +33,6 @@
 #define MAX_QUEUE_LENGTH 10
 #define DEFAULT_STATS_INTERVAL 60
 
-#define _MAX_BUFFER_SIZE_ 8192
+#define _MAX_BUFFER_SIZE_ (32768)
 
 #endif

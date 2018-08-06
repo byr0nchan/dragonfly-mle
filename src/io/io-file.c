@@ -171,7 +171,6 @@ int file_rotate(DF_HANDLE *dh)
 int file_read_line(DF_HANDLE *dh, char *buffer, int max)
 {
         char *s = fgets(buffer, max, dh->fp);
-
         if (s != NULL)
         {
                 int n = strnlen(buffer, max);
