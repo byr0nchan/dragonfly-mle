@@ -202,8 +202,8 @@ function loop(msg)
 		analytics.dga = dga
 		eve.analytics = analytics
 	
-		output_event ("log", cjson.encode(eve))
+		dragonfly.output_event ("log", cjson.encode(eve))
 	else 
-		output_event("log", msg)
+		dragonfly.output_event("log", msg)
 	end
 end

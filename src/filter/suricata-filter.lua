@@ -39,9 +39,9 @@ function loop(msg)
     local eve = cjson.decode(msg)
     if eve then
         if (eve.event_type=="alert") then
-            analyze_event ("alert", msg)
+            dragonfly.analyze_event ("alert", msg)
         else    
-            analyze_event("nsm", msg)
+            dragonfly.analyze_event("nsm", msg)
         end
     end
 end

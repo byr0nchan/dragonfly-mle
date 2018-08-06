@@ -75,9 +75,9 @@ function loop(msg)
         analytics["bytes_mad"] = bytes_mad
         eve["analytics"] = analytics
 
-        output_event("log", cjson.encode(eve)) 
+        dragonfly.output_event("log", cjson.encode(eve)) 
     else 
-		output_event("log", msg)
+		dragonfly.output_event("log", msg)
 	end
 end
 
