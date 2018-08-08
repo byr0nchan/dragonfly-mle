@@ -590,10 +590,10 @@ static void *lua_input_thread(void *ptr)
 
     /* register functions */
     lua_pushcfunction(L, analyze_event);
-    lua_setglobal(L, "analyze_event");
+    //lua_setglobal(L, "analyze_event");
 
     lua_pushcfunction(L, log_event);
-    lua_setglobal(L, "log_event");
+    //lua_setglobal(L, "log_event");
 
     /* initialize the script */
     lua_getglobal(L, "setup");
@@ -821,16 +821,16 @@ static void *lua_analyzer_thread(void *ptr)
 
     /* register functions */
     lua_pushcfunction(L, output_event);
-    lua_setglobal(L, "output_event");
+    //lua_setglobal(L, "output_event");
 
     lua_pushcfunction(L, log_event);
-    lua_setglobal(L, "log_event");
+    //lua_setglobal(L, "log_event");
 
     lua_pushcfunction(L, stats_event);
-    lua_setglobal(L, "stats_event");
+    //lua_setglobal(L, "stats_event");
 
     lua_pushcfunction(L, timer_event);
-    lua_setglobal(L, "timer_event");
+    //lua_setglobal(L, "timer_event");
     /*
      * Initialize responders commands;
      */
@@ -849,10 +849,10 @@ static void *lua_analyzer_thread(void *ptr)
     }
 
     lua_pushcfunction(L, dragonfly_dnslookup);
-    lua_setglobal(L, "dnslookup");
+    //lua_setglobal(L, "dnslookup");
 
     lua_pushcfunction(L, dragonfly_http_get);
-    lua_setglobal(L, "http_get");
+    //lua_setglobal(L, "http_get");
 
 #ifdef SURI_RESPONSE_COMMAND
     lua_pushcfunction(L, response_event);

@@ -62,13 +62,13 @@ static const char *INPUT_LUA =
 	"function loop(msg)\n"
 	"   -- print (msg)\n"
 	"   local tbl = cjson.decode(msg)\n"
-	"   analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 const char *ANALYZER_LUA =
 	"function setup()\n"
 	"  conn = assert(hiredis.connect())\n"
-	"   host = dnslookup(\"www.counterflowai.com\")\n"
+	"   host = dragonfly.dnslookup(\"www.counterflowai.com\")\n"
 	"   for _, entry in ipairs(host) do\n"
 	"      print (entry)\n"
 	"    end\n"

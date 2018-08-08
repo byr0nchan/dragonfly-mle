@@ -62,7 +62,7 @@ static const char *INPUT_LUA =
 	"\n"
 	"function loop(msg)\n"
 	"   local tbl = cjson.decode(msg)\n"
-	"   analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (\"test\", tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
@@ -75,7 +75,7 @@ static const char *ANALYZER_LUA =
 	"		return result\n"
 	"end\n"
 	"function setup()\n"
-	"   http_get (\"https://sslbl.abuse.ch/blacklist/sslblacklist.csv\",filename)\n"
+	"   dragonfly.http_get (\"https://sslbl.abuse.ch/blacklist/sslblacklist.csv\",filename)\n"
 	"   conn = assert(hiredis.connect())\n"
 	"   assert(conn:command(\"PING\") == hiredis.status.PONG)\n"
 	"	local file, err = io.open(filename, \'rb\')\n"
