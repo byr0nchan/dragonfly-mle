@@ -559,6 +559,7 @@ static void *lua_input_thread(void *ptr)
      * 
      */
     luaopen_cjson(L);
+    luaopen_cjson_safe(L);
     if (g_verbose)
     {
         syslog(LOG_INFO, "Loaded lua-cjson library");
@@ -753,24 +754,6 @@ static void *lua_analyzer_thread(void *ptr)
 
     luaL_openlibs(L);
 
-#ifdef COMMENT_OUT
-    /* set local LUA paths */
-    snprintf(lua_path, PATH_MAX - 1, "package.path = package.path .. \";lib/?.lua\"");
-    if (luaL_dostring(L, lua_path))
-    {
-        syslog(LOG_ERR, "luaL_dostring %s failed - %s", lua_script, lua_tostring(L, -1));
-        lua_pop(L, 1);
-        pthread_exit(NULL);
-    }
-
-    snprintf(lua_path, PATH_MAX - 1, "package.cpath = package.cpath .. \";lib/?.so\"");
-    if (luaL_dostring(L, lua_path))
-    {
-        syslog(LOG_ERR, "luaL_dostring %s failed - %s", lua_script, lua_tostring(L, -1));
-        lua_pop(L, 1);
-        pthread_exit(NULL);
-    }
-#endif
 
     if (luaL_loadfile(L, lua_script) || (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN))
     {
@@ -798,8 +781,8 @@ static void *lua_analyzer_thread(void *ptr)
      *  https://github.com/mpx/lua-cjson
      * 
      */
-
     luaopen_cjson(L);
+    luaopen_cjson_safe(L);
     if (g_verbose)
     {
         syslog(LOG_INFO, "Loaded lua-cjson library");

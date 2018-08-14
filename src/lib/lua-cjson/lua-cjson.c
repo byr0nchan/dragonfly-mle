@@ -51,6 +51,10 @@
 #define CJSON_MODNAME   "cjson"
 #endif
 
+#ifndef CJSON_SAFE_MODNAME
+#define CJSON_SAFE_MODNAME   "cjson_safe"
+#endif
+
 #ifndef CJSON_VERSION
 #define CJSON_VERSION   "2.1.0"
 #endif
@@ -1404,11 +1408,9 @@ int luaopen_cjson(lua_State *l)
 {
     lua_cjson_new(l);
 
-//#ifdef ENABLE_CJSON_GLOBAL
     /* Register a global "cjson" table. */
     lua_pushvalue(l, -1);
     lua_setglobal(l, CJSON_MODNAME);
-//#endif
 
     /* Return cjson table */
     return 1;
@@ -1417,6 +1419,10 @@ int luaopen_cjson(lua_State *l)
 int luaopen_cjson_safe(lua_State *l)
 {
     lua_cjson_safe_new(l);
+
+    /* Register a global "cjson" table. */
+    lua_pushvalue(l, -1);
+    lua_setglobal(l, CJSON_SAFE_MODNAME);
 
     /* Return cjson.safe table */
     return 1;
