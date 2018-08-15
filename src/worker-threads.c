@@ -452,7 +452,7 @@ static void *lua_flywheel_thread(void *ptr)
         }
         lua_flywheel_loop(flywheel);
         dragonfly_io_close(flywheel->input);
-        
+
         // if the source is a flat file, then exit
         if (dragonfly_io_isfile(flywheel->input))
         {
@@ -484,15 +484,25 @@ void lua_input_loop(lua_State *L, INPUT_CONFIG *input)
         {
             return;
         }
-        lua_getglobal(L, "loop");
-        lua_pushlstring(L, buffer, n);
-        if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
+        else if (n == _MAX_BUFFER_SIZE_)
         {
-            syslog(LOG_ERR, "%s: lua_pcall error : - %s", __FUNCTION__, lua_tostring(L, -1));
-            lua_pop(L, 1);
-            exit(EXIT_FAILURE);
+            syslog(LOG_ERR, "%s: skipping message; exceeded buffer size of %d", __FUNCTION__, _MAX_BUFFER_SIZE_);
+#ifdef __DEBUG3__
+            fprintf(stderr, "%s: skipping message; exceeded buffer size of %d", __FUNCTION__, _MAX_BUFFER_SIZE_);
+#endif
         }
-        g_stats->input++;
+        else
+        {
+            lua_getglobal(L, "loop");
+            lua_pushlstring(L, buffer, n);
+            if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
+            {
+                syslog(LOG_ERR, "%s: lua_pcall error : - %s", __FUNCTION__, lua_tostring(L, -1));
+                lua_pop(L, 1);
+                exit(EXIT_FAILURE);
+            }
+            g_stats->input++;
+        }
     }
 }
 
@@ -636,21 +646,31 @@ void lua_output_loop(OUTPUT_CONFIG *output)
         {
             return;
         }
-        buffer[n] = '\0';
-
-        if (strcasecmp(buffer, ROTATE_MESSAGE) == 0)
+        else if (n == _MAX_BUFFER_SIZE_)
         {
-            dragonfly_io_rotate(output->output);
+            syslog(LOG_ERR, "%s: skipping message; exceeded buffer size of %d", __FUNCTION__, _MAX_BUFFER_SIZE_);
+#ifdef __DEBUG3__
+            fprintf(stderr, "%s: skipping message; exceeded buffer size of %d", __FUNCTION__, _MAX_BUFFER_SIZE_);
+#endif
         }
         else
         {
-            //fprintf (stderr,"%s: %s\n", __FUNCTION__, buffer);
-            if (dragonfly_io_write(output->output, buffer) < 0)
+            buffer[n] = '\0';
+
+            if (strcasecmp(buffer, ROTATE_MESSAGE) == 0)
             {
-                fprintf(stderr, "%s: output error\n", __FUNCTION__);
-                return;
+                dragonfly_io_rotate(output->output);
             }
-            g_stats->output++;
+            else
+            {
+                //fprintf (stderr,"%s: %s\n", __FUNCTION__, buffer);
+                if (dragonfly_io_write(output->output, buffer) < 0)
+                {
+                    fprintf(stderr, "%s: output error\n", __FUNCTION__);
+                    return;
+                }
+                g_stats->output++;
+            }
         }
     }
 }
@@ -709,23 +729,32 @@ void lua_analyzer_loop(lua_State *L, ANALYZER_CONFIG *analyzer)
         {
             return;
         }
-
-        lua_pushlstring(L, buffer, n);
-        lua_insert(L, 1);
-        mp_unpack(L);
-        lua_remove(L, 1);
-
-        lua_getglobal(L, "loop");
-        lua_insert(L, -2);
-        if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
+        else if (n == _MAX_BUFFER_SIZE_)
         {
-            syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
-            lua_pop(L, 1);
-            exit(EXIT_FAILURE);
+            syslog(LOG_ERR, "%s: skipping message; exceeded buffer size of %d", __FUNCTION__, _MAX_BUFFER_SIZE_);
+#ifdef __DEBUG3__
+            fprintf(stderr, "%s: skipping message; exceeded buffer size of %d", __FUNCTION__, _MAX_BUFFER_SIZE_);
+#endif
         }
-        lua_pop(L, 1);
+        else
+        {
+            lua_pushlstring(L, buffer, n);
+            lua_insert(L, 1);
+            mp_unpack(L);
+            lua_remove(L, 1);
 
-        g_stats->analysis++;
+            lua_getglobal(L, "loop");
+            lua_insert(L, -2);
+            if (lua_pcall(L, 1, 0, 0) == LUA_ERRRUN)
+            {
+                syslog(LOG_ERR, "lua_pcall error: %s - %s", __FUNCTION__, lua_tostring(L, -1));
+                lua_pop(L, 1);
+                exit(EXIT_FAILURE);
+            }
+            lua_pop(L, 1);
+
+            g_stats->analysis++;
+        }
     }
 }
 
@@ -753,7 +782,6 @@ static void *lua_analyzer_thread(void *ptr)
     lua_State *L = luaL_newstate();
 
     luaL_openlibs(L);
-
 
     if (luaL_loadfile(L, lua_script) || (lua_pcall(L, 0, 0, 0) == LUA_ERRRUN))
     {
