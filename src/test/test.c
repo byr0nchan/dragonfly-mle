@@ -80,13 +80,13 @@ void run_self_tests(const char *dragonfly_root)
 	snprintf(config_dir, sizeof(config_dir), "%s/%s", dragonfly_root, CONFIG_DIR);
 	mkdir(config_dir, 0755);
 
-
+/*
 	SELF_TEST0(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
 	SELF_TEST1(dragonfly_root);
 	sleep(WAIT_INTERVAL);
-
+*/
 	SELF_TEST2(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
