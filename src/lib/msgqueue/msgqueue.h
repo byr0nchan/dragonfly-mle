@@ -6,7 +6,7 @@
 #include <mqueue.h>
 
 #define MAX_QUEUE_MSG_SIZE	4096
-#define MAX_MESSAGE_SIZE	8192
+#define MAX_MESSAGE_SIZE	32768
 #define QUANTUM_SLEEP		5000
  
 typedef struct
