@@ -3,11 +3,11 @@
 # ------------------------------------------------------------------
 
 # For FreeBSD
-#CC = cc
-#CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare 
+CC = cc
+CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare 
 
-CC = gcc
-CFLAGS = -O2 -g -Wall -march=native -Werror
+# CC = gcc
+# CFLAGS = -O2 -g -Wall -march=native -Werror
 
 INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp \
 	   -I./lib/lua-cjson -I./lib/lua-hiredis -I./lib/lua-cmsgpack
@@ -68,9 +68,9 @@ $(MAIN): $(OBJS)
 # ------------------------------------------------------------------
 # test build
 # ------------------------------------------------------------------
-
-test: TFLAGS =-DRUN_UNIT_TESTS -D__DEBUG__
+ 
 test: $(TEST_BIN) 
+TFLAGS =-DRUN_UNIT_TESTS -D__DEBUG__
 $(TEST_BIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(TFLAGS) $(INCLUDES) -o $(TEST_BIN) $(OBJS) $(LFLAGS) $(LIBS)
 #	valgrind --leak-check=yes ./$(TEST_BIN) -r /tmp
