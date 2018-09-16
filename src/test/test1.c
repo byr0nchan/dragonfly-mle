@@ -42,15 +42,15 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"filter.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"filter.lua\", default_analyzer=\"test1\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
-	"    { tag=\"test\", script=\"analyzer.lua\" },\n"
+	"    { tag=\"test1\", script=\"analyzer.lua\", default_analyzer=\"\", default_output=\"log1\" },\n"
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://test1.log\"},\n"
+	"    { tag=\"log1\", uri=\"file://test1.log\"},\n"
 	"}\n"
 	"\n";
 
@@ -59,14 +59,14 @@ static const char *INPUT_LUA =
 	"end\n"
 	"function loop(msg)\n"
 	"   local tbl = cjson_safe.decode(msg)\n"
-	"   dragonfly.analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (default_analyzer, tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
 	"function loop (msg)\n"
-	" dragonfly.output_event (\"log\", \"test message\")\n"
+	" dragonfly.output_event (default_output, \"test message\")\n"
 	"end\n\n";
 
 /*
@@ -104,7 +104,8 @@ void SELF_TEST1(const char *dragonfly_root)
 	write_file(ANALYZER_TEST_FILE, ANALYZER_LUA);
 	
 	fprintf(stderr, "%s: starting up threads....", __FUNCTION__);
-	startup_threads(dragonfly_root);
+	initialize_configuration(dragonfly_root, dragonfly_root, dragonfly_root);
+	startup_threads();
 	fprintf(stderr, ".done.\n");
 
 	fprintf(stderr, "%s: shutting down threads....", __FUNCTION__);
@@ -112,6 +113,7 @@ void SELF_TEST1(const char *dragonfly_root)
 	fprintf(stderr, ".done.\n");
 
 	fprintf(stderr, "-------------------------------------------------------\n\n");
+	fflush(stderr);
 }
 
 /*

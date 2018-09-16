@@ -41,15 +41,15 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"filter.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"filter.lua\", default_analyzer=\"test2\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
-	"    { tag=\"test\", script=\"analyzer.lua\" },\n"
+	"    { tag=\"test2\", script=\"analyzer.lua\", default_analyzer=\"\", default_output=\"log2\"},\n"
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"file://test2.log\"},\n"
+	"    { tag=\"log2\", uri=\"file://test2.log\"},\n"
 	"}\n"
 	"\n";
 
@@ -59,7 +59,7 @@ static const char *INPUT_LUA =
 	"function loop(msg)\n"
 	"   -- print (msg)\n"
 	"   local tbl, error = cjson_safe.decode(msg)\n"
-	"   dragonfly.analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (default_analyzer, tbl)\n"
 	"end\n";
 
 const char *ANALYZER_LUA =
@@ -116,7 +116,8 @@ void SELF_TEST2(const char *dragonfly_root)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
 #endif
-	startup_threads(dragonfly_root);
+	initialize_configuration(dragonfly_root, dragonfly_root, dragonfly_root);
+	startup_threads();
 
 	sleep(1);
 	DF_HANDLE *pump = dragonfly_io_open("ipc://input.ipc", DF_OUT);
@@ -159,6 +160,7 @@ void SELF_TEST2(const char *dragonfly_root)
 	remove(FILTER_TEST_FILE);
 	remove(ANALYZER_TEST_FILE);
 	fprintf(stderr, "-------------------------------------------------------\n\n");
+	fflush(stderr);
 }
 
 /*

@@ -80,7 +80,7 @@ static int load_redis_modules(lua_State *L, redisContext *pContext)
         syslog(LOG_INFO, "%s: no redis modules listed\n", __FUNCTION__);
         return 0;
     }
-    
+
     luaL_checktype(L, -1, LUA_TTABLE);
     for (int i = 0; i < MAX_REDIS_MODULES; i++)
     {
@@ -207,7 +207,9 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
     } fields[] = {
         {.key = "tag", .type = LUA_TSTRING},
         {.key = "uri", .type = LUA_TSTRING},
-        {.key = "script", .type = LUA_TSTRING}};
+        {.key = "script", .type = LUA_TSTRING},
+        {.key = "default_analyzer", .type = LUA_TSTRING},
+    };
 
     lua_getglobal(L, "inputs");
     if (lua_type(L, -1) != LUA_TTABLE)
@@ -225,9 +227,13 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
         }
         luaL_checktype(L, -1, LUA_TTABLE);
 
-        for (int field_index = 0; field_index < 3; field_index++)
+        for (int field_index = 0; field_index < 4; field_index++)
         {
             lua_getfield(L, -1, fields[field_index].key);
+            if (lua_isnil(L, -1))
+            {
+                fprintf(stderr, "\nERROR: %s() failed due to invalid or missing field \"%s\".\n", __FUNCTION__, fields[field_index].key);
+            }
             luaL_checktype(L, -1, fields[field_index].type);
             switch (field_index)
             {
@@ -265,7 +271,7 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
                     number_of_inputs++;
                     input_list[i].script = strndup(script_path, PATH_MAX);
 #ifdef __DEBUG3__
-                    fprintf(stderr, "script: %s\n", input_list[i].script);
+                    fprintf(stderr, "script: %s,", input_list[i].script);
 #endif
                 }
                 else
@@ -274,6 +280,14 @@ int load_inputs_config(lua_State *L, INPUT_CONFIG input_list[], int max)
                     fprintf(stderr, "script: %s (invalid)\n", input_list[i].script);
                     abort();
                 }
+            }
+            break;
+            case 3:
+            {
+                input_list[i].default_analyzer = strndup(lua_tostring(L, -1), PATH_MAX);
+#ifdef __DEBUG3__
+                fprintf(stderr, "default_analyzer: %s\n", input_list[i].uri);
+#endif
             }
             break;
             }
@@ -315,7 +329,9 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
         int type;
     } fields[] = {
         {.key = "tag", .type = LUA_TSTRING},
-        {.key = "script", .type = LUA_TSTRING}};
+        {.key = "script", .type = LUA_TSTRING},
+        {.key = "default_analyzer", .type = LUA_TSTRING},
+        {.key = "default_output", .type = LUA_TSTRING}};
 
     lua_getglobal(L, "analyzers");
     if (lua_type(L, -1) != LUA_TTABLE)
@@ -334,14 +350,19 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
         }
         luaL_checktype(L, -1, LUA_TTABLE);
 
-        for (int field_index = 0; field_index < 2; field_index++)
+        for (int field_index = 0; field_index < 4; field_index++)
         {
             lua_getfield(L, -1, fields[field_index].key);
+            if (lua_isnil(L, -1))
+            {
+                fprintf(stderr, "\nERROR: %s() failed due to invalid or missing field \"%s\".\n", __FUNCTION__, fields[field_index].key);
+            }
             luaL_checktype(L, -1, fields[field_index].type);
             switch (field_index)
             {
             case 0:
             {
+
                 analyzer_list[i - 1].tag = strdup(lua_tostring(L, -1));
 #ifdef __DEBUG3__
                 fprintf(stderr, "  [ANALYZER] tag: %s, ", analyzer_list[i - 1].tag);
@@ -350,6 +371,7 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
             break;
             case 1:
             {
+
                 struct stat sb;
                 const char *script_path = lua_tostring(L, -1);
                 char lua_analyzer[PATH_MAX];
@@ -365,7 +387,7 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
                 {
                     analyzer_list[i - 1].script = strndup(lua_analyzer, PATH_MAX);
 #ifdef __DEBUG3__
-                    fprintf(stderr, "script: %s\n", analyzer_list[i - 1].script);
+                    fprintf(stderr, "script: %s, ", analyzer_list[i - 1].script);
 #endif
                     number_of_analyzers++;
                 }
@@ -375,6 +397,24 @@ int load_analyzers_config(lua_State *L, ANALYZER_CONFIG analyzer_list[], int max
                     fprintf(stderr, "script: %s (invalid)\n", analyzer_list[i - 1].script);
                     abort();
                 }
+            }
+            break;
+            case 2:
+            {
+
+                analyzer_list[i - 1].default_analyzer = strdup(lua_tostring(L, -1));
+#ifdef __DEBUG3__
+                fprintf(stderr, "default_analyzer: %s, ", analyzer_list[i - 1].tag);
+#endif
+            }
+            break;
+            case 3:
+            {
+
+                analyzer_list[i - 1].default_output = strdup(lua_tostring(L, -1));
+#ifdef __DEBUG3__
+                fprintf(stderr, "default_output: %s\n", analyzer_list[i - 1].tag);
+#endif
             }
             break;
             }

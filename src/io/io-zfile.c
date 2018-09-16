@@ -62,7 +62,7 @@ DF_HANDLE *zfile_open(const char *ipc_path, int spec)
         else
         {
                 /* default ipc directory */
-                sprintf(zfile_path, "%s/%s", DRAGONFLY_RUN_DIR, ipc_path);
+                sprintf(zfile_path, "%s/%s", dragonfly_io_get_rundir(), ipc_path);
         }
         if ((spec & DF_IN) == DF_IN)
         {

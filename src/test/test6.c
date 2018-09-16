@@ -45,15 +45,15 @@
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"tail://input.txt<\", script=\"filter.lua\"}\n"
+	"   { tag=\"input\", uri=\"tail://input.txt<\", script=\"filter.lua\", default_analyzer=\"test6\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
-	"    { tag=\"test\", script=\"analyzer.lua\" },\n"
+	"    { tag=\"test6\", script=\"analyzer.lua\" , default_analyzer=\"\", default_output=\"log6\" },\n"
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
+	"    { tag=\"log6\", uri=\"ipc://output.ipc\"},\n"
 	"}\n"
 	"\n";
 
@@ -63,14 +63,14 @@ static const char *INPUT_LUA =
 	"\n"
 	"function loop(msg)\n"
 	"   local tbl = cjson_safe.decode(msg)\n"
-	"   dragonfly.analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (default_analyzer, tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
 	"function setup()\n"
 	"end\n"
 	"function loop (tbl)\n"
-	"   dragonfly.output_event (\"log\", tbl.msg)\n"
+	"   dragonfly.output_event (default_output, tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -161,6 +161,8 @@ void SELF_TEST6(const char *dragonfly_root)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
 #endif
+	initialize_configuration(dragonfly_root, dragonfly_root, dragonfly_root);
+
 	DF_HANDLE *input = dragonfly_io_open("ipc://output.ipc", DF_IN);
 	if (!input)
 	{
@@ -174,7 +176,8 @@ void SELF_TEST6(const char *dragonfly_root)
 		perror(__FUNCTION__);
 		abort();
 	}
-	startup_threads(dragonfly_root);
+
+	startup_threads();
 	/*
 	 * write messages walking the alphabet
 	 */
@@ -203,8 +206,9 @@ void SELF_TEST6(const char *dragonfly_root)
 	}
 
 	pthread_join(tinfo, NULL);
-	shutdown_threads();
 	dragonfly_io_close(input);
+	shutdown_threads();
+
 	closelog();
 
 	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);
@@ -213,6 +217,7 @@ void SELF_TEST6(const char *dragonfly_root)
 	remove(ANALYZER_TEST_FILE);
 	remove(INPUT_FILE);
 	fprintf(stderr, "-------------------------------------------------------\n\n");
+	fflush(stderr);
 }
 
 /*

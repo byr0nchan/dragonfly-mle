@@ -72,6 +72,7 @@ typedef struct _INPUT_CONFIG_
     char *tag;
     char *uri;
     char *script;
+    char *default_analyzer;
     DF_HANDLE *input;
     queue_t *queue;
 } INPUT_CONFIG;
@@ -90,6 +91,8 @@ typedef struct _ANALYZER_CONFIG_
 {
     char *tag;
     char *script;
+    char *default_analyzer;
+    char *default_output;
     queue_t *queue;
 } ANALYZER_CONFIG;
 

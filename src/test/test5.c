@@ -47,15 +47,15 @@ extern int g_running;
 
 static const char *CONFIG_LUA =
 	"inputs = {\n"
-	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"filter.lua\"}\n"
+	"   { tag=\"input\", uri=\"ipc://input.ipc\", script=\"filter.lua\", default_analyzer=\"test5\"}\n"
 	"}\n"
 	"\n"
 	"analyzers = {\n"
-	"    { tag=\"test\", script=\"analyzer.lua\" },\n"
+	"    { tag=\"test5\", script=\"analyzer.lua\", default_analyzer=\"\", default_output=\"log5\" },\n"
 	"}\n"
 	"\n"
 	"outputs = {\n"
-	"    { tag=\"log\", uri=\"ipc://output.ipc\"},\n"
+	"    { tag=\"log5\", uri=\"ipc://output.ipc\"},\n"
 	"}\n"
 	"\n";
 
@@ -65,7 +65,7 @@ static const char *INPUT_LUA =
 	"\n"
 	"function loop(msg)\n"
 	"   local tbl = cjson_safe.decode(msg)\n"
-	"   dragonfly.analyze_event (\"test\", tbl)\n"
+	"   dragonfly.analyze_event (default_analyzer, tbl)\n"
 	"end\n";
 
 static const char *ANALYZER_LUA =
@@ -73,7 +73,7 @@ static const char *ANALYZER_LUA =
 	"end\n"
 	"function loop (tbl)\n"
 	"  -- print (tbl.msg)\n"
-	"   dragonfly.output_event (\"log\", tbl.msg)\n"
+	"   dragonfly.output_event (default_output, tbl.msg)\n"
 	"end\n\n";
 /*
  * ---------------------------------------------------------------------------------------
@@ -156,6 +156,7 @@ void SELF_TEST5(const char *dragonfly_root)
 #ifdef _GNU_SOURCE
 	pthread_setname_np(pthread_self(), "dragonfly");
 #endif
+	initialize_configuration(dragonfly_root, dragonfly_root, dragonfly_root);
 	pthread_t tinfo;
 	if (pthread_create(&tinfo, NULL, consumer_thread, (void *)NULL) != 0)
 	{
@@ -163,7 +164,8 @@ void SELF_TEST5(const char *dragonfly_root)
 		abort();
 	}
 	sleep (1);
-	startup_threads(dragonfly_root);
+
+	startup_threads();
 
 	DF_HANDLE *pump_out = dragonfly_io_open("ipc://input.ipc", DF_OUT);
 	if (!pump_out)
@@ -197,12 +199,12 @@ void SELF_TEST5(const char *dragonfly_root)
 			abort();
 		}
 		snprintf(buffer, sizeof(buffer), "{ \"id\": %lu, \"msg\":\"%s\" }", i, msg_out);
-//fprintf (stderr,"%s: %i [%lu]\n", __FUNCTION__, __LINE__, i);
 		dragonfly_io_write(pump_out, buffer);
 	}
 	pthread_join(tinfo, NULL);
-	shutdown_threads();
 	dragonfly_io_close(pump_out);
+	shutdown_threads();
+
 
 	closelog();
 	fprintf(stderr, "%s: cleaning up files\n", __FUNCTION__);
@@ -210,6 +212,7 @@ void SELF_TEST5(const char *dragonfly_root)
 	remove(FILTER_TEST_FILE);
 	remove(ANALYZER_TEST_FILE);
 	fprintf(stderr, "-------------------------------------------------------\n\n");
+	fflush(stderr);
 }
 
 /*

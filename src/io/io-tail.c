@@ -117,7 +117,7 @@ DF_HANDLE *tail_open(const char *path, int spec)
         else
         {
                 /* default log directory */
-                snprintf(file_path, PATH_MAX, "%s/%s", DRAGONFLY_LOG_DIR, path);
+                snprintf(file_path, PATH_MAX, "%s/%s", dragonfly_io_get_logdir(), path);
         }
 
         if ((spec & DF_IN) == DF_IN)

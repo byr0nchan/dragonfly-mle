@@ -30,9 +30,9 @@
 void dragonfly_mle_run (const char *rootdir, const char *logdir, const char *rundir);
 
 void shutdown_threads();
-void startup_threads(const char *dragonfly_root);
+void startup_threads();
 void destroy_configuration();
-void initialize_configuration(const char *dragonfly_root);
+void initialize_configuration(const char *rootdir, const char *logdir, const char *rundir);
 
 #endif
 

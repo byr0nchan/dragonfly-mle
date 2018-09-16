@@ -66,5 +66,11 @@ void dragonfly_io_close(DF_HANDLE *dh);
 void dragonfly_io_rotate(DF_HANDLE *dh);
 int dragonfly_io_isfile(DF_HANDLE *dh);
 
+void dragonfly_io_set_rundir (const char* rundir);
+const char* dragonfly_io_get_rundir ();
+
+void dragonfly_io_set_logdir (const char* rundir);
+const char* dragonfly_io_get_logdir ();
+
 #endif
 

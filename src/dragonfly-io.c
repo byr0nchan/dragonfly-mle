@@ -30,6 +30,8 @@
 #include <pthread.h>
 #include <errno.h>
 
+#include "config.h"
+
 #include "dragonfly-io.h"
 
 #include "io-file.h"
@@ -38,6 +40,59 @@
 #include "io-zfile.h"
 #include "io-kafka.h"
 #include "io-syslog.h"
+
+static char *g_run_dir = NULL;
+static char *g_log_dir = NULL;
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+void dragonfly_io_set_rundir(const char *rundir)
+{
+        if (g_run_dir)
+        {
+                free (g_run_dir);
+        }
+        g_run_dir = strndup(rundir, PATH_MAX);
+        //ssfprintf(stderr,"%s: %s\n", __FUNCTION__, g_run_dir);
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+const char *dragonfly_io_get_rundir()
+{
+        return (g_run_dir == NULL) ? DRAGONFLY_RUN_DIR : g_run_dir;
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+void dragonfly_io_set_logdir(const char *rundir)
+{
+        if (g_log_dir)
+        {
+                free (g_log_dir);
+        }
+        g_log_dir = strndup(rundir, PATH_MAX);
+        //ssfprintf(stderr,"%s: %s\n", __FUNCTION__, g_run_dir);
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+const char *dragonfly_io_get_logdir()
+{
+        return (g_log_dir == NULL) ? DRAGONFLY_LOG_DIR : g_log_dir;
+}
 
 /*
  * ---------------------------------------------------------------------------------------
@@ -224,9 +279,9 @@ void dragonfly_io_close(DF_HANDLE *dh)
  */
 int dragonfly_io_isfile(DF_HANDLE *dh)
 {
-        if (dh && 
-                ((dh->io_type == DF_OUT_FILE_TYPE)||
-                (dh->io_type == DF_IN_FILE_TYPE)))
+        if (dh &&
+            ((dh->io_type == DF_OUT_FILE_TYPE) ||
+             (dh->io_type == DF_IN_FILE_TYPE)))
         {
                 return 1;
         }

@@ -79,8 +79,7 @@ void dragonfly_mle_test(const char *dragonfly_root)
 	char config_dir[PATH_MAX];
 	snprintf(config_dir, sizeof(config_dir), "%s/%s", dragonfly_root, CONFIG_DIR);
 	mkdir(config_dir, 0755);
-
-	/*
+/*
 	SELF_TEST0(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
@@ -105,6 +104,7 @@ void dragonfly_mle_test(const char *dragonfly_root)
 	SELF_TEST7(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
+	sleep(WAIT_INTERVAL);
 	SELF_TEST8(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 

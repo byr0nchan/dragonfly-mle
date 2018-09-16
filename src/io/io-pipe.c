@@ -152,7 +152,7 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
         else
         {
                 /* default ipc directory */
-                sprintf(addr.sun_path, "%s/%s", DRAGONFLY_RUN_DIR, ipc_path);
+                sprintf(addr.sun_path, "%s/%s", dragonfly_io_get_rundir(), ipc_path);
         }
 
         int s;
@@ -166,7 +166,7 @@ DF_HANDLE *ipc_open(const char *ipc_path, int spec)
 #endif
                 if ((s = bind(socket_handle, (struct sockaddr *)&addr, sizeof(addr))) < 0)
                 {
-                        syslog(LOG_ERR, "unable to bind socket: %s\n", strerror(errno));
+                        syslog(LOG_ERR, "unable to bind socket %s: %s\n", addr.sun_path, strerror(errno));
                         return NULL;
                 }
                 // TODO: need to experiment with this!
