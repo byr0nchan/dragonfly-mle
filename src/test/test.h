@@ -24,11 +24,15 @@
 #ifndef _SELF_TEST_H_
 #define _SELF_TEST_H_
 
+
+#include "dragonfly-lib.h"
+#include "dragonfly-io.h"
+
 #define ANALYZER_TEST_FILE "./analyzer/analyzer.lua"
 #define FILTER_TEST_FILE "./filter/filter.lua"
 #define CONFIG_TEST_FILE "./config/config.lua"
 
-void run_self_tests(const char *dragonfly_root);
+void dragonfly_mle_test(const char *dragonfly_root);
 void SELF_TEST0(const char *dragonfly_root);
 void SELF_TEST1(const char *dragonfly_root);
 void SELF_TEST2(const char *dragonfly_root);

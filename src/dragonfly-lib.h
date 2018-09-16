@@ -24,11 +24,15 @@
 #ifndef _ANALYZER_THREADS_
 #define _ANALYZER_THREADS_
 
+#include "config.h"
+#include "test.h"
+
+void dragonfly_mle_run (const char *rootdir, const char *logdir, const char *rundir);
+
 void shutdown_threads();
 void startup_threads(const char *dragonfly_root);
 void destroy_configuration();
 void initialize_configuration(const char *dragonfly_root);
-void launch_lua_threads(const char *dragonfly_config);
 
 #endif
 

@@ -52,7 +52,7 @@
 
 #include "mqueue.h"
 
-#include "worker-threads.h"
+#include "dragonfly-lib.h"
 #include "dragonfly-cmds.h"
 #include "dragonfly-io.h"
 #include "responder.h"
@@ -62,14 +62,14 @@
 extern int g_verbose;
 extern int g_chroot;
 extern int g_drop_priv;
-extern char *g_dragonfly_log;
+
+uint64_t g_running = 1;
 
 static char g_root_dir[PATH_MAX];
+static char g_run_dir[PATH_MAX];
 static char g_log_dir[PATH_MAX];
 static char g_analyzer_dir[PATH_MAX];
 static char g_config_file[PATH_MAX];
-
-extern uint64_t g_running;
 
 static int g_analyzer_pid = -1;
 static int g_num_analyzer_threads = 0;
@@ -934,11 +934,6 @@ void initialize_configuration(const char *dragonfly_root)
     snprintf(g_analyzer_dir, PATH_MAX, "%s/%s", dragonfly_root, ANALYZER_DIR);
     snprintf(g_config_file, PATH_MAX, "%s/%s", dragonfly_root, CONFIG_FILE);
 
-    if (g_dragonfly_log)
-    {
-        strncpy(g_log_dir, g_dragonfly_log, PATH_MAX);
-    }
-
     syslog(LOG_INFO, "log dir: %s\n", g_log_dir);
     syslog(LOG_INFO, "analyzer dir: %s\n", g_analyzer_dir);
 
@@ -1111,7 +1106,7 @@ void launch_analyzer_process(const char *dragonfly_analyzer_root)
  * ---------------------------------------------------------------------------------------
  */
 
-void create_message_queues()
+static void create_message_queues()
 {
     for (int i = 0; i < MAX_ANALYZER_STREAMS; i++)
     {
@@ -1154,7 +1149,7 @@ void create_message_queues()
  * ---------------------------------------------------------------------------------------
  */
 
-void destroy_message_queues()
+static void destroy_message_queues()
 {
     for (int i = 0; g_input_list[i].queue != NULL; i++)
     {
@@ -1350,15 +1345,82 @@ void startup_threads(const char *dragonfly_root)
  * ---------------------------------------------------------------------------------------
  */
 
-void launch_lua_threads(const char *root_directory)
+static void launch_lua_threads(const char *root_directory)
 {
     g_verbose = isatty(1);
     startup_threads(root_directory);
     while (g_running)
     {
+        //TODO:  listen to REST API here
         sleep(1);
     }
     shutdown_threads();
+}
+
+/*
+ * ---------------------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------------------
+ */
+
+void dragonfly_mle_run(const char *rootdir, const char *logdir, const char *rundir)
+{
+    umask(022);
+    if (!*rootdir)
+    {
+        strncpy(g_root_dir, DRAGONFLY_ROOT_DIR, PATH_MAX);
+    }
+    else
+    {
+        strncpy(g_root_dir, rootdir, PATH_MAX);
+    }
+    struct stat sb;
+    if ((lstat(g_root_dir, &sb) < 0) || !S_ISDIR(sb.st_mode))
+    {
+        fprintf(stderr, "DRAGONFLY_ROOT %s does not exist\n", g_root_dir);
+        exit(EXIT_FAILURE);
+    }
+    if (!logdir)
+    {
+        strncpy(g_log_dir, DRAGONFLY_LOG_DIR, PATH_MAX);
+    }
+    else
+    {
+        strncpy(g_log_dir, logdir, PATH_MAX);
+    }
+    /*
+	 * Make sure log directory exists
+	 */
+    if ((lstat(g_log_dir, &sb) < 0) || !S_ISCHR(sb.st_mode))
+    {
+        if (mkdir(g_log_dir, 0755) && errno != EEXIST)
+        {
+            fprintf(stderr, "mkdir (%s) error - %s\n", g_log_dir, strerror(errno));
+            syslog(LOG_WARNING, "mkdir (%s) error - %s\n", g_log_dir, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+    }
+    if (!rundir)
+    {
+        strncpy(g_run_dir, DRAGONFLY_RUN_DIR, PATH_MAX);
+    }
+    else
+    {
+        strncpy(g_run_dir, rundir, PATH_MAX);
+    }
+    /*
+	 * Make sure run directory exists
+	 */
+    if ((lstat(g_run_dir, &sb) < 0) || !S_ISCHR(sb.st_mode))
+    {
+        if (mkdir(g_run_dir, 0755) && errno != EEXIST)
+        {
+            fprintf(stderr, "mkdir (%s) error - %s\n", g_run_dir, strerror(errno));
+            syslog(LOG_WARNING, "mkdir (%s) error - %s\n", g_run_dir, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+    }
+    launch_lua_threads(g_root_dir);
 }
 
 /*

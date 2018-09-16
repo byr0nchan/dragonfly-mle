@@ -38,9 +38,6 @@
 
 #include <assert.h>
 
-#include "worker-threads.h"
-#include "dragonfly-io.h"
-
 #include "test.h"
 
 extern int g_running;

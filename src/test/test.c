@@ -39,7 +39,7 @@
 #include "config.h"
 #include "test.h"
 
-#include "worker-threads.h"
+#include "dragonfly-lib.h"
 #include "dragonfly-io.h"
 extern int g_running;
 
@@ -50,7 +50,7 @@ extern int g_running;
  *
  * ---------------------------------------------------------------------------------------
  */
-void run_self_tests(const char *dragonfly_root)
+void dragonfly_mle_test(const char *dragonfly_root)
 {
 	fprintf(stderr, "Running unit tests\n");
 
@@ -80,7 +80,7 @@ void run_self_tests(const char *dragonfly_root)
 	snprintf(config_dir, sizeof(config_dir), "%s/%s", dragonfly_root, CONFIG_DIR);
 	mkdir(config_dir, 0755);
 
-/*
+	/*
 	SELF_TEST0(dragonfly_root);
 	sleep(WAIT_INTERVAL);
 
@@ -110,7 +110,6 @@ void run_self_tests(const char *dragonfly_root)
 
 	SELF_TEST9(dragonfly_root);
 	sleep(WAIT_INTERVAL);
-
 
 	SELF_TEST10(dragonfly_root);
 	sleep(WAIT_INTERVAL);

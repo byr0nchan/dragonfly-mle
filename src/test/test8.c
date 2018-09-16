@@ -37,9 +37,6 @@
 #include <pthread.h>
 #include <assert.h>
 
-#include "worker-threads.h"
-#include "dragonfly-io.h"
-
 #include "test.h"
 
 static const char *CONFIG_LUA =
