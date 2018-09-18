@@ -2,12 +2,14 @@
 # dragonfly build
 # ------------------------------------------------------------------
 
-# For FreeBSD
-CC = cc
-CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare 
+CC = $(LINUX_CC)
+CFLAGS = $(LINUX_CFLAGS)
 
-#CC = gcc
-#CFLAGS = -O2 -g -Wall -march=native -Werror
+LINUX_CC = gcc
+LINUX_CFLAGS = -O2 -Wall -march=native -Werror
+BSD_CC = cc
+BSD_CFLAGS = -O2 -Wall -march=native -Werror -Wno-error=tautological-pointer-compare
+
 
 INCLUDES = -I. -I/usr/local/include -I./io -I./test -I./lib/msgqueue -I./resp \
 	   -I./lib/lua-cjson -I./lib/lua-hiredis -I./lib/lua-cmsgpack
@@ -31,7 +33,7 @@ SRCS = main.c worker-threads.c dragonfly-io.c dragonfly-cmds.c config.c \
 # I/O modules
 # ------------------------------------------------------------------
 SRCS1 = io/io-file.c io/io-pipe.c io/io-tail.c io/io-kafka.c \
-        io/io-syslog.c io/io-zfile.c
+        io/io-syslog.c io/io-zfile.c 
 
 # ------------------------------------------------------------------
 # Responder modules
@@ -68,9 +70,9 @@ $(MAIN): $(OBJS)
 # ------------------------------------------------------------------
 # test build
 # ------------------------------------------------------------------
-
-test: TFLAGS =-DRUN_UNIT_TESTS -D__DEBUG__
+ 
 test: $(TEST_BIN) 
+TFLAGS =-DRUN_UNIT_TESTS -D__DEBUG__
 $(TEST_BIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(TFLAGS) $(INCLUDES) -o $(TEST_BIN) $(OBJS) $(LFLAGS) $(LIBS)
 #	valgrind --leak-check=yes ./$(TEST_BIN) -r /tmp
@@ -89,6 +91,13 @@ install:
 	install ./analyzer/* $(DRAGONFLY_ROOT)/analyzer/
 	install ./filter/* $(DRAGONFLY_ROOT)/filter/
 	install ./config/* $(DRAGONFLY_ROOT)/config/
+
+# ------------------------------------------------------------------
+# reconfigure OS target
+# ------------------------------------------------------------------
+
+target:
+	@./make-target.sh
 
 # ------------------------------------------------------------------
 # misc
